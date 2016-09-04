@@ -92,3 +92,24 @@ Attaching event(s) to: someFunction
 Done.
 
 ```
+
+**I haz an error**
+The only one I see, and quite regularly during my testing, is a result of having the wrong bucket name configured in the serverless.yml, either in the IAM configuration providing permissions or in the function definition where I'm attaching the event. Make sure your bucket names are right.
+
+```
+>sls s3deploy
+
+Attaching event(s) to: BUCKET_NAME
+
+  Invalid Argument ---------------------------------------
+
+     Unable to validate the following destination configurations
+
+     For debugging logs, run again after setting SLS_DEBUG env var.
+
+  Get Support --------------------------------------------
+     Docs:          docs.serverless.com
+     Bugs:          github.com/serverless/serverless/issues
+
+     Please report this error. We think it might be a bug.
+```
