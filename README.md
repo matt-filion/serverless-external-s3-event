@@ -20,6 +20,9 @@ plugins:
 
 ```
 
+**REDICULOU STEP**
+Go to the target bucket in s3 console, add any Event to any lambda function, save it, then remove it and save again. I'm certain this has to do with some sort of policy or permission that gets added, but I've not figured out what it is yet.
+
 **Give your deploy permission to access the bucket.**
 The BUCKET_NAME variable within provider.iamRoleStatements.Resource.Fn::Join needs to be replaced with the name of the bucket you want to attach your event(s) to.  If there are multiple buckets you want to attach events to add a new item for each bucket.
 
