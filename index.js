@@ -18,11 +18,12 @@ class Deploy {
 
   afterDeployFunctions() {
 
-    /*
-     * TODO
-     *  - Event Filters
-     *  - 
-     */
+//
+//    /*
+//     * TODO
+//     *  - Event Filters
+//     *  - 
+//     */
     const cliOptions          = this.serverless.pluginManager.cliOptions;
     const sdk                 = this.serverless.pluginManager.plugins.find( item => item.constructor.name === 'AwsDeploy').sdk;
     const AWS                 = sdk.sdk;
@@ -91,6 +92,7 @@ class Deploy {
       })
       .then( bucketNotifications => Promise.all( bucketNotifications.map(param => S3.putBucketNotificationConfiguration(param).promise() ) ) )
       .then( () => console.log("Done."))
+      .catch( error => console.log("Error attaching event(s)",error));
     
   }
   
@@ -98,15 +100,17 @@ class Deploy {
     return functionObj.events
       .filter(event => event.existingS3)
       .map(event => {
+        var bucketEvents = event.existingS3.bucketEvents ? event.existingS3.bucketEvents : ['s3:ObjectCreated:*'];
+        
         /*
          * Hoping the ID causes overwriting of an existing configuration.
          */
         return {
           bucket: event.existingS3.bucket,
           config: {
-            Id: 'trigger--' + functionObj.name + '--when--' + event.existingS3.bucketEvents.join().replace(/[\.\:\*]/g,''), 
+            Id: 'trigger--' + functionObj.name + '--when--' + bucketEvents.join().replace(/[\.\:\*]/g,''), 
             LambdaFunctionArn: functionObj.name,
-            Events: event.existingS3.bucketEvents  || ['s3:ObjectCreated:*']
+            Events: bucketEvents
           }
         }
       })
