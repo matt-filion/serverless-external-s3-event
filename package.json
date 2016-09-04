@@ -1,0 +1,53 @@
+{
+  "name": "serverless-external-s3-event",
+  "version": "1.0",
+  "description": "Overcomes the CloudFormation limitation on attaching an event to an uncontrolled bucket, for Serverless.com 1.0+.",
+  "main": "index.js",
+  "homepage": "https://github.com/matt-filion/serverless-external-s3-event",
+  "author":"Matt Filion <matt.filion@gmail.com>",
+  "dependencies": {
+  },
+  "devDependencies": {
+  },
+  "maintainers": [
+    {
+      "name": "Matt Filion",
+      "email": "matt.filion@gmail.com"
+    }
+  ],
+  "contributors": [
+    {
+      "name": "Matt Filion",
+      "email": "matt.filion@gmail.com"
+    }
+  ],
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/matt-filion/serverless-external-s3-event"
+  },
+  "bugs" : {
+    "url": "https://github.com/matt-filion/serverless-external-s3-event/issues"
+  },
+  "author": {
+    "name": "Matt Filion",
+    "email": "matt.filion@gmail.com"
+  },
+  "private": false,
+  "readmeFilename": "README.md",
+  "licenses": [
+    {
+      "type": "MIT",
+      "url": "http://github.com/jeremyosborne/packagejsonexample/blob/master/LICENSE.txt"
+    }
+  ],
+  "keywords": [
+     "s3",
+     "event",
+     "notifications",
+     "serverless",
+     "serverless.com"
+  ]
+}
