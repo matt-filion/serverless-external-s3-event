@@ -10,6 +10,7 @@ Attach an S3 event to a function defined within your Serverless.com 1.0+ service
 _Looking to eliminate this step, as it will place the dependency within your deployed code._
 ```
 > npm install serverless-external-s3-event
+```
 
 **Declare the plugin in your serverless.yml**
 ```serverless.yml
