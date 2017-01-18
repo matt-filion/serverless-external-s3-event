@@ -2,9 +2,10 @@
 
 class Deploy {
   constructor(serverless, options) {
-    this.serverless = serverless;
-    this.options    = options;
-    this.commands   = {
+    this.serverless  = serverless;
+    this.options     = options;
+    this.provider    = this.serverless.getProvider('aws');
+    this.commands    = {
       s3deploy: {
         lifecycleEvents: [
           'events'
@@ -18,25 +19,15 @@ class Deploy {
 
   afterDeployFunctions() {
 
-//
-//    /*
-//     * TODO
-//     *  - Event Filters
-//     *  - 
-//     */
-    const cliOptions          = this.serverless.pluginManager.cliOptions;
-    const sdk                 = this.serverless.pluginManager.plugins.find( item => item.constructor.name === 'AwsDeploy').sdk;
-    const AWS                 = sdk.sdk;
-    const credentials         = sdk.getCredentials(cliOptions.stage,cliOptions.region);
-    const S3                  = new AWS.S3(credentials);
-    const CloudFormation      = new AWS.CloudFormation(credentials);
+    // console.log("this.provider",this.provider);
+
     const bucketNotifications = this.serverless.service.getAllFunctions()
-      .map(name => this.serverless.service.getFunction(name) )
+      .map( name => this.serverless.service.getFunction(name) )
       /*
        * Create a LambdaFunctionConfigurations for existingS3 configuration
        *  on each functionObj.
        */
-      .map(functionObj => this.getLambdaFunctionConfigurationsFromFunction(functionObj) )
+      .map( functionObj => this.getLambdaFunctionConfigurationsFromFunction(functionObj) )
       /*
        * Flatten the results
        */
@@ -68,29 +59,30 @@ class Deploy {
       })
 
     /*
+     * Don't bother doing any work if there is no configurations specified for this
+     *  plugin.
+     */
+    if(bucketNotifications.length===0) return Promise.resolve();
+
+    /*
      * Lookup the ARN for each function referenced within the bucket
      *  events.
      */
-    return CloudFormation.describeStacks({ StackName: sdk.getStackName(cliOptions.stage) }).promise()
-      .then(results => results.Stacks[0].Outputs)
+    return this.provider.request('CloudFormation','describeStacks',null,this.options.stage,this.options.region)
+      .then(results => results.Stacks[0] ? results.Stacks[0].Outputs : [])
       .then(outputs => {
         bucketNotifications.forEach( notification => {
           notification.NotificationConfiguration.LambdaFunctionConfigurations.forEach( lambdaFunctionConfiguration => {
             var output = outputs.find( output => output.OutputValue.endsWith(':function:'+lambdaFunctionConfiguration.LambdaFunctionArn) )
             lambdaFunctionConfiguration.LambdaFunctionArn = output.OutputValue
-            
           })
         })
-        return bucketNotifications;
       })
       /*
        * Attach the events to each bucket.
        */
-      .then( buckets => {
-        console.log("Attaching event(s) to:",buckets.reduce( (result,bucket) => result += bucket.Bucket + ' ',''));
-        return buckets;
-      })
-      .then( bucketNotifications => Promise.all( bucketNotifications.map(param => S3.putBucketNotificationConfiguration(param).promise() ) ) )
+      .then( () => console.log("Attaching event(s) to:",bucketNotifications.reduce( (result,bucket) => result += bucket.Bucket + ' ','')) )
+      .then( () => Promise.all( bucketNotifications.map(param => this.provider.request('S3','putBucketNotificationConfiguration', param, this.options.stage, this.options.region) ) ) )
       .then( () => console.log("Done."))
       .catch( error => console.log("Error attaching event(s)",error));
     
