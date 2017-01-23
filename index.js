@@ -92,20 +92,38 @@ class Deploy {
     return functionObj.events
       .filter(event => event.existingS3)
       .map(event => {
-        var bucketEvents = event.existingS3.bucketEvents ? event.existingS3.bucketEvents : ['s3:ObjectCreated:*'];
-        
+        var bucketEvents = event.existingS3.bucketEvents ? event.existingS3.bucketEvents : ['s3:ObjectCreated:*'],
+            eventRules = event.existingS3.rules ? event.existingS3.rules : [];
+
         /*
          * Hoping the ID causes overwriting of an existing configuration.
          */
-        return {
+        var returnObject = {
           bucket: event.existingS3.bucket,
           config: {
-            Id: 'trigger--' + functionObj.name + '--when--' + bucketEvents.join().replace(/[\.\:\*]/g,''), 
+            Id: 'trigger--' + functionObj.name + '--when--' + bucketEvents.join().replace(/[\.\:\*]/g,''),
             LambdaFunctionArn: functionObj.name,
             Events: bucketEvents
           }
+        };
+
+        if (eventRules.length > 0) {
+          returnObject.config.Filter = {};
+          returnObject.config.Filter.Key = {};
+          returnObject.config.Filter.Key.FilterRules = [];
         }
-      })
+
+        eventRules.forEach(rule => {
+          Object.keys(rule).forEach(key => {
+            returnObject.config.Filter.Key.FilterRules.push({
+              Name: key,
+              Value: rule[key]
+            });
+          });
+        });
+
+        return returnObject;
+    })
   }
 }
 
