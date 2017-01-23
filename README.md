@@ -41,6 +41,7 @@ provider:
 
 **Attach an event to your target function.**
 Add an -existingS3 event definition under 'events' of your function declaration. The bucketEvents value is optional. If omitted it will default to a single entry for "s3:ObjectCreated:*".
+The eventRules property is optional and can contain either a prefix, suffix or both of these properties as a rule for when the event will trigger.
 
 ```serverless.yml
 
@@ -53,6 +54,9 @@ functions:
           bucket: BUCKET_NAME
           bucketEvents: 
             - s3:ObjectCreated:*
+          eventRules:
+            - prefix: images/
+            - suffix: .jpg
 ```
 
 **Run the command.**
