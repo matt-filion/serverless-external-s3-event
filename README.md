@@ -3,7 +3,7 @@ Overcomes the CloudFormation limitation on attaching an event to an uncontrolled
 
 # How?
 
-**NPM dependency**
+**1. NPM dependency**
 _Looking to eliminate this step, as it will place the dependency within your deployed code._
 ```
 > npm install serverless-external-s3-event
@@ -17,10 +17,13 @@ plugins:
 
 ```
 
-**REDICULOUS STEP**
-Go to the target bucket in s3 console, add any Event to any lambda function, save it, then remove it and save again. I'm certain this has to do with some sort of policy or permission that gets added, but I've not figured out what it is yet.
+**2. Grant Permissions**
+I cant find a way to automate this yet. You need to run this command that gives permissions for your bucket to invoke your lambda function. If I can figure out a way to add this into the plugin I will, it annoys me this is a step.
+```
+aws lambda add-permission --function-name FUNCTION_NAME --region us-west-2 --statement-id ANY_ID --action "lambda:InvokeFunction" --principal s3.amazonaws.com --source-arn arn:aws:s3:::BUCKET_NAME --source-account YOUR_AWS_ACCOUNT_NUM
+```
 
-**Give your deploy permission to access the bucket.**
+**3. Give your deploy permission to access the bucket.**
 The BUCKET_NAME variable within provider.iamRoleStatements.Resource.Fn::Join needs to be replaced with the name of the bucket you want to attach your event(s) to.  If there are multiple buckets you want to attach events to add a new item for each bucket.
 
 ```serverless.yml
@@ -39,7 +42,7 @@ provider:
            - - "arn:aws:s3:::BUCKET_OTHERNAME" 
 ```
 
-**Attach an event to your target function.**
+**4. Attach an event to your target function.**
 Add an -existingS3 event definition under 'events' of your function declaration. The bucketEvents value is optional. If omitted it will default to a single entry for "s3:ObjectCreated:*".
 
 ```serverless.yml
