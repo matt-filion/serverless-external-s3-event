@@ -73,8 +73,9 @@ class Deploy {
       .then(outputs => {
         bucketNotifications.forEach( notification => {
           notification.NotificationConfiguration.LambdaFunctionConfigurations.forEach( lambdaFunctionConfiguration => {
-            var output = outputs.find( output => output.OutputValue.endsWith(':function:'+lambdaFunctionConfiguration.LambdaFunctionArn) )
-            lambdaFunctionConfiguration.LambdaFunctionArn = output.OutputValue
+            const lambdaRegexp = new RegExp(`:function:${lambdaFunctionConfiguration.LambdaFunctionArn}(\:)?`);
+            const output = outputs.find( output => output.OutputValue.match(lambdaRegexp) );
+            lambdaFunctionConfiguration.LambdaFunctionArn = output.OutputValue.replace(/:\d$/, '');
           })
         })
       })
