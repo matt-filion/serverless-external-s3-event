@@ -93,13 +93,13 @@ class Deploy {
     return functionObj.events
       .filter(event => event.existingS3)
       .map(event => {
-        var bucketEvents = event.existingS3.bucketEvents ? event.existingS3.bucketEvents : ['s3:ObjectCreated:*'],
-            eventRules = event.existingS3.eventRules ? event.existingS3.eventRules : [];
+        const bucketEvents = event.existingS3.events || event.existingS3.bucketEvents || ['s3:ObjectCreated:*'],
+            eventRules = event.existingS3.rules || event.existingS3.eventRules || [];
 
         /*
          * Hoping the ID causes overwriting of an existing configuration.
          */
-        var returnObject = {
+        const returnObject = {
           bucket: event.existingS3.bucket,
           config: {
             Id: 'trigger--' + functionObj.name + '--when--' + bucketEvents.join().replace(/[\.\:\*]/g,''),
@@ -129,3 +129,4 @@ class Deploy {
 }
 
 module.exports = Deploy;
+
