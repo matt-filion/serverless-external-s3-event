@@ -69,12 +69,14 @@ class Deploy {
      *  events.
      */
     return this.provider.request('CloudFormation','describeStacks',null,this.options.stage,this.options.region)
-      .then(results => results.Stacks[0] ? results.Stacks[0].Outputs : [])
-      .then(outputs => {
+      .then( results => !results.Stacks ? [] : results.Stacks.reduce((accumulator,current) => accumulator.concat(current.Outputs), []))
+      .then( outputs => outputs.filter(output => output && output.OutputValue) )
+      .then( outputs => {
         bucketNotifications.forEach( notification => {
           notification.NotificationConfiguration.LambdaFunctionConfigurations.forEach( lambdaFunctionConfiguration => {
             const lambdaRegexp = new RegExp(`:function:${lambdaFunctionConfiguration.LambdaFunctionArn}(\:)?`);
             const output = outputs.find( output => output.OutputValue.match(lambdaRegexp) );
+            if(!output) throw new Error("It looks like the function has not yet beend deployed. You must use 'sls deploy' before doing 'sls s3deploy.");
             lambdaFunctionConfiguration.LambdaFunctionArn = output.OutputValue.replace(/:\d$/, '');
           })
         })
@@ -85,7 +87,7 @@ class Deploy {
       .then( () => console.log("Attaching event(s) to:",bucketNotifications.reduce( (result,bucket) => result += bucket.Bucket + ' ','')) )
       .then( () => Promise.all( bucketNotifications.map(param => this.provider.request('S3','putBucketNotificationConfiguration', param, this.options.stage, this.options.region) ) ) )
       .then( () => console.log("Done."))
-      .catch( error => console.log("Error attaching event(s)",error));
+      .catch( error => console.log("Error attaching event(s)",error.message ? error.message : error));
     
   }
   
