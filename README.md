@@ -17,13 +17,7 @@ plugins:
 
 ```
 
-**2. Grant Permissions**
-I cant find a way to automate this yet. You need to run this command that gives permissions for your bucket to invoke your lambda function. If I can figure out a way to add this into the plugin I will, it annoys me this is a step.
-```
-aws lambda add-permission --function-name FUNCTION_NAME --region us-west-2 --statement-id ANY_ID --action "lambda:InvokeFunction" --principal s3.amazonaws.com --source-arn arn:aws:s3:::BUCKET_NAME --source-account YOUR_AWS_ACCOUNT_NUM
-```
-
-**3. Give your deploy permission to access the bucket.**
+**2. Give your deploy permission to access the bucket.**
 The BUCKET_NAME variable within provider.iamRoleStatements.Resource.Fn::Join needs to be replaced with the name of the bucket you want to attach your event(s) to.  If there are multiple buckets you want to attach events to add a new item for each bucket.
 
 ```serverless.yml
@@ -38,11 +32,11 @@ provider:
        Resource:
          Fn::Join:
            - ""
-           - - "arn:aws:s3:::BUCKET_NAME" 
-           - - "arn:aws:s3:::BUCKET_OTHERNAME" 
+           - - "arn:aws:s3:::BUCKET_NAME"
+           - - "arn:aws:s3:::BUCKET_OTHERNAME"
 ```
 
-**4. Attach an event to your target function.**
+**3. Attach an event to your target function.**
 Add an -existingS3 event definition under 'events' of your function declaration. The 'events' value is optional under your -existingS3 event and if omitted, it will default to a single entry for "s3:ObjectCreated:*".
 
 The rules property is optional and can contain either a prefix, suffix or both of these properties as a rule for when the event will trigger.
@@ -58,7 +52,7 @@ functions:
     events:
       - existingS3:
           bucket: BUCKET_NAME
-          events: 
+          events:
             - s3:ObjectCreated:*
           rules:
             - prefix: images/
