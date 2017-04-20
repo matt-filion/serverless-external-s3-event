@@ -179,7 +179,7 @@ class S3Deploy {
     })
     .catch((err) => {
       //this one is going to handle the issue when Policy Permission not found.
-      if(err.toString() === 'ServerlessError: The resource you requested does not exist.'){
+      if(err.statusCode === 404 && err.toString() === 'ServerlessError: The resource you requested does not exist.'){
         return Promise.resolve();
       } else {
         return Promise.reject(err);
