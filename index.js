@@ -77,7 +77,7 @@ class S3Deploy {
             Action: "lambda:InvokeFunction",
             FunctionName: deployed.deployedName,
             Principal: 's3.amazonaws.com',
-            StatementId: `${deployed.deployedName}-${bucket.Bucket}`, // TODO hash the entire cfg? in case multiple
+            StatementId: `${deployed.deployedName}-${bucket.Bucket.replace(/[\.\:\*]/g,'')}`, // TODO hash the entire cfg? in case multiple
             //Qualifier to point at alias or version
             SourceArn: `arn:aws:s3:::${bucket.Bucket}`
           };
@@ -175,6 +175,14 @@ class S3Deploy {
       } else {
         //just resolve
         return Promise.resolve();
+      }
+    })
+    .catch((err) => {
+      //this one is going to handle the issue when Policy Permission not found.
+      if(err.statusCode === 404 && err.toString() === 'ServerlessError: The resource you requested does not exist.'){
+        return Promise.resolve();
+      } else {
+        return Promise.reject(err);
       }
     })
     .then(() => {
