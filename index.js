@@ -9,6 +9,13 @@ class S3Deploy {
     this.providerConfig = this.service.provider;
     this.functionPolicies = {};
 
+    this.options.stage = this.options.stage
+      || (this.serverless.service.provider && this.serverless.service.provider.stage)
+      || 'dev';
+    this.options.region = this.options.region
+      || (this.serverless.service.provider && this.serverless.service.provider.region)
+      || 'us-east-1';
+
     this.commands    = {
       s3deploy: {
         lifecycleEvents: [
