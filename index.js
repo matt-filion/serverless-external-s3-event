@@ -1,196 +1,245 @@
 'use strict';
 
-class S3Deploy {
-  constructor(serverless, options) {
-    this.serverless  = serverless;
-    this.options     = options;
-    this.service     = serverless.service;
-    this.provider    = this.serverless.getProvider('aws');
-    this.providerConfig = this.service.provider;
-    this.functionPolicies = {};
+const Permissions = require('./Permissions');
+const S3          = require('./S3');
 
-    this.commands    = {
+class S3Deploy {
+
+  constructor(serverless,options) {
+
+    this.serverless        = serverless;
+    this.options           = options;
+    this.provider          = this.serverless.getProvider('aws');
+    this.s3Facade          = new S3(this.serverless,this.options,this.provider);
+    this.lambdaPermissions = new Permissions.Lambda(this.provider);
+
+    this.commands   = {
       s3deploy: {
         lifecycleEvents: [
-          'events'
-        ]
+          'init',
+          'functions',
+          's3'
+        ],
+        usage: 'Add lambda notifications to S3 buckets not defined in serverless.yml',
+        options: {
+          'continue-on-error' : {
+            usage: 'Can be used to attempt a partial deploy, where not all functions are available/deployed. They will be skipped and not attmepted.'
+          },
+          help: {
+            usage: 'See https://github.com/matt-filion/serverless-external-s3-event for detailed documentation.'
+          }
+        }
       },
     };
+
     this.hooks = {
-      'after:s3deploy:events': this.afterS3DeployFunctions.bind(this)
+      's3deploy:init': this.init.bind(this),
+
+      'before:s3deploy:functions':this.beforeFunctions.bind(this),
+      's3deploy:functions': this.functions.bind(this),
+      'after:s3deploy:functions': this.afterFunctions.bind(this),
+
+      'before:s3deploy:s3':this.beforeS3.bind(this),
+      's3deploy:s3': this.s3.bind(this),
+      'after:s3deploy:s3': this.afterS3.bind(this)
     };
+
+    this.bucketNotifications;
+    this.currentBucketNotifications;
+
   }
 
-  afterS3DeployFunctions() {
-    let funcObjs = this.service.getAllFunctions().map(name => this.service.getFunction(name));
+  init(){
+  }
 
-    //turn functions into the config objects (flattened)
-    let lambdaConfigs = funcObjs.map(obj => this.getLambdaFunctionConfigurationsFromFunction(obj))
-    .reduce((flattened, c) => flattened = flattened.concat(c), []);
+  /*
+   * Looks at the serverless.yml file for the project the plugin is defined within and 
+   *  builds the AWS payload needed for each S3 bucket configured for externalS3 events.
+   */
+  beforeFunctions(){
 
-    //collate by bucket
-    let bucketNotifications = lambdaConfigs.reduce((buckets, c) => {
-      // TODO simplify this
-      //find existing array with bucket name
-      let bucketLambdaConfigs = buckets.find(existing => existing.Bucket === c.bucket);
-      //otherwise create it
-      if (!bucketLambdaConfigs) {
-        bucketLambdaConfigs = { Bucket: c.bucket, NotificationConfiguration: { LambdaFunctionConfigurations: [] } };
-        buckets.push(bucketLambdaConfigs);
-      }
-      //add config to notification
-      bucketLambdaConfigs.NotificationConfiguration.LambdaFunctionConfigurations.push(c.config);
-      return buckets;
-    }, []);
+    this.serverless.cli.log("beforeFunctions --> building ... ");
 
-    //skip empty configs
-    if (bucketNotifications.length === 0) {
-      return Promise.resolve();
-    }
+    const functions = this.serverless.service.functions;
+    const names     = Object.keys(functions);
+    let   count     = 0;
+    this.events     = names
 
-    //find the info plugin
-    let info = this.serverless.pluginManager.getPlugins().find(i => i.constructor.name === 'AwsInfo');
-    //use it to get deployed functions to check for things to attach to
-    return info.getStackInfo().then(() => {
-      // TODO make this a separate method
-      let results = info.gatheredData.info;
+      /*
+       * Looking at each function defined in the serverless.yml file this will transform/map
+       *  into the BucketNotificationConfiguration's that are needed for each S3 bucket
+       */
+      .map( name => functions[name] )
 
-      let permsPromises = [];
-      let buckets = [];
-      bucketNotifications.forEach((bucket) => {
-        //check this buckets notifications and replace the arn with the real one
-        bucket.NotificationConfiguration.LambdaFunctionConfigurations.forEach((cfg) => {
-          let deployed = results.functions.find((fn) => fn.deployedName === cfg.LambdaFunctionArn);
-          if (!deployed) {
-            throw new Error("It looks like the function has not yet beend deployed. You must use 'sls deploy' before doing 'sls s3deploy.");
+      /*
+       * Each event can be targeted at a different bucket, so here I break them out into their own
+       *  item combined with the data from the parent.
+       */
+      .map( funktion => funktion.events.map( event => Object.assign(event,{handler: funktion.handler,name: funktion.name})) )
+
+      /* 
+       * Flatten the nested arrays. 
+       */
+      .reduce( (accumulator,current) => accumulator.concat(current), [])
+
+      /*
+       * Get rid of any event that is not for existingS3, since its not actionable for this plugin. 
+       */
+      .filter( event => event.existingS3 )
+
+      /*
+       * For each defined function, get the current policy defined for that function. The policy of
+       *  each function must permit S3 to invoke it.
+       */
+      .map( event => this.lambdaPermissions.getPolicy(event.name, event) )
+
+    this.serverless.cli.log(`beforeFunctions <-- Complete, built ${this.events.length} events.`);
+  }
+
+  functions(){
+    this.serverless.cli.log("functions --> prepare to be executed by s3 buckets ... ");
+
+    let count = 0;
+
+    return Promise.all( this.events )
+      .then( results => results.map( result => {
+
+          const event = result.passthrough;
+
+          /*
+           * If we get a 'funciton not found' error message then sls deploy has likely not been
+           *  executed. I suppose it could also be 'permissions', but that would require someone
+           *  create a wonkey AIM definition in serverless.yml.
+           */
+          if(result.error && result.error.toLowerCase().startsWith('function not found')){
+            if(this.options['continue-on-error']) {
+              this.serverless.cli.log(`\t ERROR: It looks like the function ${event.name} has not yet beend deployed, it will be excluded.`);
+              event.remove = true;
+              return Promise.resolve(event);
+            } else {
+              throw `It looks like the function ${event.name} has not yet beend deployed (it may not be the only one). You must use 'sls deploy' before doing 'sls s3deploy'.`;
+            }
           }
-          //get the full arn!
-          let output = info.gatheredData.outputs.find((out) => out.OutputValue.indexOf(deployed.deployedName) !== -1);
-          let arn = output.OutputValue.replace(/:\d$/, ''); //unless using qualifier?
 
-          //replace placeholder ARN with final
-          cfg.LambdaFunctionArn = arn;
-          this.serverless.cli.log(`Attaching ${deployed.deployedName} to ${bucket.Bucket} ${cfg.Events}...`);
+          /*
+           * No permissions have been added to this function for any S3 bucket, so create the policy
+           *  and return the event when it executes successfully.
+           */
+          if(result.error && 'the resource you requested does not exist.' === result.error.toLowerCase()){
+            return this.lambdaPermissions.createPolicy(event.name,event.existingS3.bucket,event);
+          }
 
-          //attach the bucket permission to the lambda
-          let permConfig = {
-            Action: "lambda:InvokeFunction",
-            FunctionName: deployed.deployedName,
-            Principal: 's3.amazonaws.com',
-            StatementId: `${deployed.deployedName}-${bucket.Bucket.replace(/[\.\:\*]/g,'')}`, // TODO hash the entire cfg? in case multiple
-            //Qualifier to point at alias or version
-            SourceArn: `arn:aws:s3:::${bucket.Bucket}`
-          };
-          permsPromises.push(this.lambdaPermApi(permConfig));
-        });
+          /*
+           * If there is no policy on the lambda function allowing the S3 bucket to invoke it
+           *  then add it. These policies are named specifically for this lambda function so
+           *  existing 'should' be sufficient in ensureing its proper.
+           */
+          if(!result.statement) {
+            return this.lambdaPermissions.createPolicy(event.name,event.existingS3.bucket,event);
+          }
 
-        //attach the event notification to the bucket
-        buckets.push(bucket);
-      });
+          return Promise.resolve(result);
+        })
+      )
+      .then( results => Promise.all(results) )
 
-      //run permsPromises before buckets
-      return Promise.all(permsPromises)
-      .then(() => Promise.all(buckets.map((b) => this.s3EventApi(b))));
-    })
-    .then(() => this.serverless.cli.log('Done.'));
+      /*
+       * Transform results
+       */
+      .then( events => events
+        /*
+         * Clear out any events that it has been determined cannot be
+         *  attached to S3 buckets.
+         */
+        .filter( event => !event.remove ) 
+
+        /*
+         * Update the ARN for each function using the policies found for each function.
+         */
+        .map( result => {
+          const event = result.passthrough;
+          const statement = result.statement;
+
+          event.arn = statement.Resource;
+          
+          return event;
+        })
+        /*
+         * Merge the events into groups for each bucket, as that will be the unit of work
+         *  going forward. 
+         */
+        .reduce( (accumulator,event) => {
+          count ++;
+          let bucketGroup = accumulator.find( group => group.name === event.existingS3.bucket )
+          if(!bucketGroup) {
+            bucketGroup = {
+              name: event.existingS3.bucket,
+              events: []
+            }
+            accumulator.push(bucketGroup);
+          }
+          bucketGroup.events.push(event);
+          return accumulator;
+        }, [])
+      )
+      .then( bucketNotifications => {
+        this.bucketNotifications = bucketNotifications;
+        this.serverless.cli.log(`functions <-- built ${count} events across ${bucketNotifications.length} buckets. `);
+      })
   }
 
-  getLambdaFunctionConfigurationsFromFunction(functionObj) {
-    return functionObj.events
-    .filter(event => event.existingS3)
-    .map(event => {
-      let bucketEvents = event.existingS3.events || event.existingS3.bucketEvents || ['s3:ObjectCreated:*'];
-      let eventRules = event.existingS3.rules || event.existingS3.eventRules || [];
-
-      const returnObject = {
-        bucket: event.existingS3.bucket,
-        config: {
-          Id: 'trigger-' + functionObj.name + '-when-' + bucketEvents.join().replace(/[\.\:\*]/g,''), // TODO hash the filter?
-          LambdaFunctionArn: functionObj.name,
-          Events: bucketEvents
-        }
-      };
-
-      if (eventRules.length > 0) {
-        returnObject.config.Filter = {};
-        returnObject.config.Filter.Key = {};
-        returnObject.config.Filter.Key.FilterRules = [];
-      }
-
-      eventRules.forEach(rule => {
-        Object.keys(rule).forEach(key => {
-          returnObject.config.Filter.Key.FilterRules.push({
-            Name: key,
-            Value: rule[key]
-          });
-        });
-      });
-
-      return returnObject;
-    })
+  afterFunctions(){
   }
 
-  s3EventApi(cfg) {
-    //this is read/modify/put
-    return this.provider.request('S3', 'getBucketNotificationConfiguration', { Bucket: cfg.Bucket }, this.providerConfig.stage, this.providerConfig.region)
-    .then((bucketConfig) => {
-      //find lambda with our ARN or ID, replace it or add a new one
-      cfg.NotificationConfiguration.LambdaFunctionConfigurations.forEach((ourcfg) => {
-        let currentConfigIndex = bucketConfig.LambdaFunctionConfigurations.findIndex((s3cfg) => ourcfg.LambdaFunctionArn === s3cfg.LambdaFunctionArn || ourcfg.Id === s3cfg.Id);
-        if (currentConfigIndex !== -1) {
-          //just remove it
-          bucketConfig.LambdaFunctionConfigurations.splice(currentConfigIndex, 1);
-        }
-        //push new config
-        bucketConfig.LambdaFunctionConfigurations.push(ourcfg);
+  beforeS3(){
+    this.serverless.cli.log("beforeS3 --> ");
+
+    const promises = this.bucketNotifications.map( bucketConfiguration => this.s3Facade.getLambdaNotifications(bucketConfiguration.name) )
+
+    return Promise.all(promises)
+      .then( results => {
+        this.currentBucketNotifications = results;
+        this.serverless.cli.log("beforeS3 <-- ");
       });
-      debugger;
-      return { Bucket: cfg.Bucket, NotificationConfiguration: bucketConfig };
-    }).then((cfg) => {
-      return this.provider.request('S3', 'putBucketNotificationConfiguration', cfg, this.providerConfig.stage, this.providerConfig.region);
-    });
+
   }
 
-  lambdaPermApi(cfg) {
-    //detect existing config with a read call
-    //https://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/Lambda.html#getPolicy-property
-    var existingPolicyPromise = null;
-    if (this.functionPolicies[cfg.FunctionName]) {
-      existingPolicyPromise = Promise.resolve(this.functionPolicies[cfg.FunctionName]);
-    } else {
-      existingPolicyPromise = this.provider.request('Lambda', 'getPolicy', { FunctionName: cfg.FunctionName }, this.providerConfig.stage, this.providerConfig.region)
-      .then((result) => {
-        let policy = JSON.parse(result.Policy);
-        this.functionPolicies[cfg.FunctionName] = policy;
-        return policy;
-      });
+  s3(){
+
+    if(this.bucketNotifications && this.bucketNotifications.length !== 0) {
+
+      this.serverless.cli.log("s3 --> initiate requests ...");
+
+
+      const promises = this.bucketNotifications
+        .map( bucketConfiguration => {
+          
+          const s3Notifications = this.currentBucketNotifications.find( currentNotification => currentNotification.bucket === bucketConfiguration.name );
+
+          /*
+           * Remove any events that were previously created. No sense in sending them
+           *  across again.
+           */
+          if(s3Notifications && s3Notifications.results.length !== 0) {
+            bucketConfiguration.events = bucketConfiguration.events.filter( event => {
+              return !s3Notifications.results.find( s3Event => s3Event.Id === this.s3Facade.getId(event) );
+            })
+          }
+
+
+          return bucketConfiguration;
+        })
+        .filter( bucketConfig => bucketConfig.events.length !== 0)
+        .map( bucketConfig => this.s3Facade.putLambdaNotification(bucketConfig) )
+
+      return Promise.all(promises)
+        .then( results => this.serverless.cli.log(`s3 <-- Complete ${results.length} updates.`) );
+
     }
-
-    return existingPolicyPromise.then((policy) => {
-      //find our id
-      let ourStatement = policy.Statement.find((stmt) => stmt.Sid === cfg.StatementId);
-      if (ourStatement) {
-        //delete the statement before adding a new one
-        return this.provider.request('Lambda', 'removePermission', { FunctionName: cfg.FunctionName, StatementId: cfg.StatementId }, this.providerConfig.stage, this.providerConfig.region);
-      } else {
-        //just resolve
-        return Promise.resolve();
-      }
-    })
-    .catch((err) => {
-      //this one is going to handle the issue when Policy Permission not found.
-      if(err.statusCode === 404 && err.toString() === 'ServerlessError: The resource you requested does not exist.'){
-        return Promise.resolve();
-      } else {
-        return Promise.reject(err);
-      }
-    })
-    .then(() => {
-      //put the new policy
-      return this.provider.request('Lambda', 'addPermission', cfg, this.providerConfig.stage, this.providerConfig.region);
-    });
   }
 
+  afterS3(){
+  }
 }
 
 module.exports = S3Deploy;
