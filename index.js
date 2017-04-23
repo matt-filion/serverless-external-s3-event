@@ -163,12 +163,19 @@ class S3Deploy {
         let policy = JSON.parse(result.Policy);
         this.functionPolicies[cfg.FunctionName] = policy;
         return policy;
+      })
+      .catch((err) => {
+        if(err.statusCode === 404){
+          return Promise.resolve();
+        }else{
+          throw err;
+        }
       });
     }
 
     return existingPolicyPromise.then((policy) => {
       //find our id
-      let ourStatement = policy.Statement.find((stmt) => stmt.Sid === cfg.StatementId);
+      let ourStatement = policy && policy.Statement.find((stmt) => stmt.Sid === cfg.StatementId);
       if (ourStatement) {
         //delete the statement before adding a new one
         return this.provider.request('Lambda', 'removePermission', { FunctionName: cfg.FunctionName, StatementId: cfg.StatementId }, this.providerConfig.stage, this.providerConfig.region);
