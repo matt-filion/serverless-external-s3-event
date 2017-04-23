@@ -1,6 +1,6 @@
 {
   "name": "serverless-external-s3-event",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Attach Lambda events to an existing S3 bucket, for Serverless.com 1.5+.",
   "main": "index.js",
   "homepage": "https://github.com/matt-filion/serverless-external-s3-event",
