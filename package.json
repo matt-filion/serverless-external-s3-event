@@ -1,5 +1,5 @@
 {
-  "name": "serverless-external-s3-event",
+  "name": "serverless-plugin-existing-s3",
   "version": "2.0.0",
   "description": "Attach Lambda events to an existing S3 bucket, for Serverless.com 1.11.0+.",
   "main": "index.js",
@@ -18,7 +18,8 @@
     "LICENSE",
     "package.json",
     "Permissions.js",
-    "S3.js"
+    "S3.js",
+    "Transformer.js"
   ],
   "contributors": [
     {

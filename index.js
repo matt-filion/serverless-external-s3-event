@@ -2,6 +2,7 @@
 
 const Permissions = require('./Permissions');
 const S3          = require('./S3');
+const Transformer = require('./Transformer');
 
 class S3Deploy {
 
@@ -12,6 +13,8 @@ class S3Deploy {
     this.provider          = this.serverless.getProvider('aws');
     this.s3Facade          = new S3(this.serverless,this.options,this.provider);
     this.lambdaPermissions = new Permissions.Lambda(this.provider);
+    this.transformer       = new Transformer();
+
 
     this.commands   = {
       s3deploy: {
@@ -33,23 +36,16 @@ class S3Deploy {
     };
 
     this.hooks = {
-      's3deploy:init': this.init.bind(this),
-
       'before:s3deploy:functions':this.beforeFunctions.bind(this),
-      's3deploy:functions': this.functions.bind(this),
-      'after:s3deploy:functions': this.afterFunctions.bind(this),
+      's3deploy:functions': this.functions.bind(this)
 
       'before:s3deploy:s3':this.beforeS3.bind(this),
-      's3deploy:s3': this.s3.bind(this),
-      'after:s3deploy:s3': this.afterS3.bind(this)
+      's3deploy:s3': this.s3.bind(this)
     };
 
     this.bucketNotifications;
     this.currentBucketNotifications;
 
-  }
-
-  init(){
   }
 
   /*
@@ -60,38 +56,7 @@ class S3Deploy {
 
     this.serverless.cli.log("beforeFunctions --> building ... ");
 
-    const functions = this.serverless.service.functions;
-    const names     = Object.keys(functions);
-    let   count     = 0;
-    this.events     = names
-
-      /*
-       * Looking at each function defined in the serverless.yml file this will transform/map
-       *  into the BucketNotificationConfiguration's that are needed for each S3 bucket
-       */
-      .map( name => functions[name] )
-
-      /*
-       * Each event can be targeted at a different bucket, so here I break them out into their own
-       *  item combined with the data from the parent.
-       */
-      .map( funktion => funktion.events.map( event => Object.assign(event,{handler: funktion.handler,name: funktion.name})) )
-
-      /* 
-       * Flatten the nested arrays. 
-       */
-      .reduce( (accumulator,current) => accumulator.concat(current), [])
-
-      /*
-       * Get rid of any event that is not for existingS3, since its not actionable for this plugin. 
-       */
-      .filter( event => event.existingS3 )
-
-      /*
-       * For each defined function, get the current policy defined for that function. The policy of
-       *  each function must permit S3 to invoke it.
-       */
-      .map( event => this.lambdaPermissions.getPolicy(event.name, event) )
+    this.events = this.transformer.functionsToEvents(this.serverless.service.functions);
 
     this.serverless.cli.log(`beforeFunctions <-- Complete, built ${this.events.length} events.`);
   }
@@ -146,54 +111,20 @@ class S3Deploy {
       /*
        * Transform results
        */
-      .then( events => events
-        /*
-         * Clear out any events that it has been determined cannot be
-         *  attached to S3 buckets.
-         */
-        .filter( event => !event.remove ) 
-
-        /*
-         * Update the ARN for each function using the policies found for each function.
-         */
-        .map( result => {
-          const event = result.passthrough;
-          const statement = result.statement;
-
-          event.arn = statement.Resource;
-          
-          return event;
-        })
-        /*
-         * Merge the events into groups for each bucket, as that will be the unit of work
-         *  going forward. 
-         */
-        .reduce( (accumulator,event) => {
-          count ++;
-          let bucketGroup = accumulator.find( group => group.name === event.existingS3.bucket )
-          if(!bucketGroup) {
-            bucketGroup = {
-              name: event.existingS3.bucket,
-              events: []
-            }
-            accumulator.push(bucketGroup);
-          }
-          bucketGroup.events.push(event);
-          return accumulator;
-        }, [])
-      )
+      .then( events => this.transformer.eventsToBucketGroups(events) )
       .then( bucketNotifications => {
         this.bucketNotifications = bucketNotifications;
         this.serverless.cli.log(`functions <-- built ${count} events across ${bucketNotifications.length} buckets. `);
       })
   }
 
-  afterFunctions(){
-  }
-
   beforeS3(){
     this.serverless.cli.log("beforeS3 --> ");
 
+    /*
+     * Load the current notification configruartions for each bucket that is impacted. This will be used
+     *  to filter out changes that have already been applied to the bucket.
+     */
     const promises = this.bucketNotifications.map( bucketConfiguration => this.s3Facade.getLambdaNotifications(bucketConfiguration.name) )
 
     return Promise.all(promises)
@@ -209,7 +140,6 @@ class S3Deploy {
     if(this.bucketNotifications && this.bucketNotifications.length !== 0) {
 
       this.serverless.cli.log("s3 --> initiate requests ...");
-
 
       const promises = this.bucketNotifications
         .map( bucketConfiguration => {
@@ -236,9 +166,6 @@ class S3Deploy {
         .then( results => this.serverless.cli.log(`s3 <-- Complete ${results.length} updates.`) );
 
     }
-  }
-
-  afterS3(){
   }
 }
 
