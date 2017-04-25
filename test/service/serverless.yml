@@ -8,6 +8,7 @@ provider:
   name: aws
   runtime: nodejs6.10
   stage: test
+  region: us-east-1
   environment:
     S3_BUCKET_NAME: {"Ref":"TestBucket"}
 functions:
@@ -15,7 +16,7 @@ functions:
     handler: handler.onS3Upload
     events:
       - existingS3:
-          bucket: serverless-external-s3-event-test-test-eu-west-1
+          bucket: ${self:service}-${self:custom.stage}-${opt:region}
           events:
             - s3:ObjectCreated:*
           rules:

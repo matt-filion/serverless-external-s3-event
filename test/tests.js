@@ -35,7 +35,7 @@ function sls(args) {
       process.stdout.write(chalk.gray.dim(data))
     })
     child.stderr.on('data', data => {
-      process.stderr.write(chalk.red(stderr))
+      process.stderr.write(chalk.red(data))
     })
   })
 }
@@ -50,7 +50,7 @@ describe('Service Deployment', () => {
   })
   after(() => {
     // Remove Serverless stack after tests
-    //return sls(['remove', '-r', process.env.AWS_REGION])
+    return sls(['remove', '-r', process.env.AWS_REGION])
   })
   it('creates CloudFormation stack', () => {
     return Promise.resolve()

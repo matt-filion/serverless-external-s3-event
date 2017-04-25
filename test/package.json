@@ -9,9 +9,11 @@
     "test:sc5": "AWS_PROFILE=sc5 AWS_REGION=eu-west-1 mocha --timeout 300000 tests.js"
   },
   "devDependencies": {
-    "serverless": "^1.11.0",
+    "aws-sdk": "^2.45.0",
     "chai": "^3.5.0",
     "chai-as-promised": "^6.0.0",
-    "mocha": "^3.3.0"
+    "mocha": "^3.3.0",
+    "serverless": "^1.11.0",
+    "chalk": "^1.1.3"
   }
 }

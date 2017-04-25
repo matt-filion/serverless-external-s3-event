@@ -4,7 +4,7 @@
   "description": "",
   "main": "handler.js",
   "scripts": {
-    "install": "mkdir -p node_modules/serverless-plugin-external-s3-event && cp ../../*.js* node_modules/serverless-plugin-external-s3-event/"
+    "install": "mkdir -p node_modules/serverless-plugin-external-s3-event && cd node_modules/serverless-plugin-external-s3-event && ln -sf ../../../../*.js* ./"
   },
   "keywords": [],
   "author": "",
