@@ -1,7 +1,7 @@
 # Test service for serverless-external-s3-event
 service: serverless-external-s3-event-test
 plugins:
-  - serverless-plugin-external-s3-event
+  - serverless-external-s3-event
 custom:
   stage: ${opt:stage, self:provider.stage}
 provider:
