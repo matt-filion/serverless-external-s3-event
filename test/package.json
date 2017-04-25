@@ -5,8 +5,7 @@
   "license": "MIT",
   "scripts": {
     "install": "cd service && npm install",
-    "test": "mocha --timeout 300000 tests.js",
-    "test:sc5": "AWS_PROFILE=sc5 AWS_REGION=eu-west-1 mocha --timeout 300000 tests.js"
+    "test": "mocha --timeout 300000 tests.js"
   },
   "devDependencies": {
     "aws-sdk": "^2.45.0",
