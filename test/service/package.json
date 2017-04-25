@@ -1,0 +1,12 @@
+{
+  "name": "serverless-external-s3-event-test-service",
+  "version": "1.0.0",
+  "description": "",
+  "main": "handler.js",
+  "scripts": {
+    "install": "mkdir -p node_modules/serverless-plugin-external-s3-event && cp ../../*.js* node_modules/serverless-plugin-external-s3-event/"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
+}
