@@ -3,7 +3,9 @@
  * Get it, cuz he is a 'transformer'....
  */
 class OptimusPrime {
-  constructor(){}
+  constructor(this.lambdaPermissions){
+    this.lambdaPermissions = lambdaPermissions;
+  }
 
   functionsToEvents(functions) {
     const names = Object.keys(functions);
@@ -62,7 +64,6 @@ class OptimusPrime {
        *  going forward. 
        */
       .reduce( (accumulator,event) => {
-        count ++;
         let bucketGroup = accumulator.find( group => group.name === event.existingS3.bucket )
         if(!bucketGroup) {
           bucketGroup = {

@@ -13,10 +13,8 @@ class S3Deploy {
     this.provider          = this.serverless.getProvider('aws');
     this.s3Facade          = new S3(this.serverless,this.options,this.provider);
     this.lambdaPermissions = new Permissions.Lambda(this.provider);
-    this.transformer       = new Transformer();
-
-
-    this.commands   = {
+    this.transformer       = new Transformer(this.lambdaPermissions);
+    this.commands          = {
       s3deploy: {
         lifecycleEvents: [
           'init',
@@ -37,7 +35,7 @@ class S3Deploy {
 
     this.hooks = {
       'before:s3deploy:functions':this.beforeFunctions.bind(this),
-      's3deploy:functions': this.functions.bind(this)
+      's3deploy:functions': this.functions.bind(this),
 
       'before:s3deploy:s3':this.beforeS3.bind(this),
       's3deploy:s3': this.s3.bind(this)

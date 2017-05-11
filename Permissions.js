@@ -28,9 +28,9 @@ class LambdaPermissions {
       .catch( error => Object.assign({}, { error:error.message, passthrough } ) );
   }
 
-
   getStatement(policy,event) {
-    const policyId = this.getId(event.name, event.existingS3.bucket);     
+    const policyId = this.getId(event.name, event.existingS3.bucket); 
+    console.log("policyId",policyId);
     return policy.Statement.find( statement => statement.Sid === policyId );
   }
 
