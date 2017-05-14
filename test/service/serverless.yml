@@ -1,0 +1,34 @@
+# Test service for serverless-external-s3-event
+service: serverless-external-s3-event-test
+plugins:
+  - serverless-external-s3-event
+custom:
+  stage: ${opt:stage, self:provider.stage}
+provider:
+  name: aws
+  runtime: nodejs6.10
+  stage: test
+  region: us-east-1
+  environment:
+    S3_BUCKET_NAME: {"Ref":"TestBucket"}
+functions:
+  onS3Upload:
+    handler: handler.onS3Upload
+    events:
+      - existingS3:
+          bucket: ${self:service}-${self:custom.stage}-${opt:region}
+          events:
+            - s3:ObjectCreated:*
+          rules:
+            - prefix: images/
+            - suffix: .jpg
+resources:
+  Resources:
+    TestBucket:
+      Type: AWS::S3::Bucket
+      Properties:
+        BucketName: ${self:service}-${self:custom.stage}-${opt:region}
+  Outputs:
+    TestBucket:
+      Description: Test bucket name
+      Value: {"Ref":"TestBucket"}

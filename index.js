@@ -20,7 +20,19 @@ class S3Deploy {
       s3deploy: {
         lifecycleEvents: [
           'events'
-        ]
+        ],
+        options: {
+          stage: {
+            usage: 'Stage of the service',
+            shortcut: 's',
+            required: false,
+          },
+          region: {
+            usage: 'Region of the service',
+            shortcut: 'r',
+            required: false,
+          },
+        },
       },
     };
     this.hooks = {
@@ -73,7 +85,7 @@ class S3Deploy {
           }
           //get the full arn!
           let output = info.gatheredData.outputs.find((out) => out.OutputValue.indexOf(deployed.deployedName) !== -1);
-          let arn = output.OutputValue.replace(/:\d$/, ''); //unless using qualifier?
+          let arn = output.OutputValue.replace(/:\d+$/, ''); //unless using qualifier?
 
           //replace placeholder ARN with final
           cfg.LambdaFunctionArn = arn;
@@ -139,7 +151,7 @@ class S3Deploy {
 
   s3EventApi(cfg) {
     //this is read/modify/put
-    return this.provider.request('S3', 'getBucketNotificationConfiguration', { Bucket: cfg.Bucket }, this.providerConfig.stage, this.providerConfig.region)
+    return this.provider.request('S3', 'getBucketNotificationConfiguration', { Bucket: cfg.Bucket }, this.options.stage, this.options.region)
     .then((bucketConfig) => {
       //find lambda with our ARN or ID, replace it or add a new one
       cfg.NotificationConfiguration.LambdaFunctionConfigurations.forEach((ourcfg) => {
@@ -154,7 +166,7 @@ class S3Deploy {
       debugger;
       return { Bucket: cfg.Bucket, NotificationConfiguration: bucketConfig };
     }).then((cfg) => {
-      return this.provider.request('S3', 'putBucketNotificationConfiguration', cfg, this.providerConfig.stage, this.providerConfig.region);
+      return this.provider.request('S3', 'putBucketNotificationConfiguration', cfg, this.options.stage, this.options.region);
     });
   }
 
@@ -165,7 +177,7 @@ class S3Deploy {
     if (this.functionPolicies[cfg.FunctionName]) {
       existingPolicyPromise = Promise.resolve(this.functionPolicies[cfg.FunctionName]);
     } else {
-      existingPolicyPromise = this.provider.request('Lambda', 'getPolicy', { FunctionName: cfg.FunctionName }, this.providerConfig.stage, this.providerConfig.region)
+      existingPolicyPromise = this.provider.request('Lambda', 'getPolicy', { FunctionName: cfg.FunctionName }, this.options.stage, this.options.region)
       .then((result) => {
         let policy = JSON.parse(result.Policy);
         this.functionPolicies[cfg.FunctionName] = policy;
@@ -185,7 +197,7 @@ class S3Deploy {
       let ourStatement = policy && policy.Statement.find((stmt) => stmt.Sid === cfg.StatementId);
       if (ourStatement) {
         //delete the statement before adding a new one
-        return this.provider.request('Lambda', 'removePermission', { FunctionName: cfg.FunctionName, StatementId: cfg.StatementId }, this.providerConfig.stage, this.providerConfig.region);
+        return this.provider.request('Lambda', 'removePermission', { FunctionName: cfg.FunctionName, StatementId: cfg.StatementId }, this.options.stage, this.options.region);
       } else {
         //just resolve
         return Promise.resolve();
@@ -201,7 +213,7 @@ class S3Deploy {
     })
     .then(() => {
       //put the new policy
-      return this.provider.request('Lambda', 'addPermission', cfg, this.providerConfig.stage, this.providerConfig.region);
+      return this.provider.request('Lambda', 'addPermission', cfg, this.options.stage, this.options.region);
     });
   }
 

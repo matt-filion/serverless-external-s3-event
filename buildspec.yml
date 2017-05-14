@@ -1,0 +1,9 @@
+version: 0.1
+phases:
+  install:
+    commands:
+      - mkdir -p test/service/node_modules/serverless-external-s3-event && cp index.js package.json test/service/node_modules/serverless-external-s3-event/
+      - cd test && npm install
+  build:
+    commands:
+      - cd test && npm test

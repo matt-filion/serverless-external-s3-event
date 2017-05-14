@@ -1,0 +1,18 @@
+{
+  "name": "serverless-external-s3-event-test",
+  "version": "1.0.0",
+  "main": "tests.js",
+  "license": "MIT",
+  "scripts": {
+    "install": "cd service && npm install",
+    "test": "mocha --timeout 300000 tests.js"
+  },
+  "devDependencies": {
+    "aws-sdk": "^2.45.0",
+    "chai": "^3.5.0",
+    "chai-as-promised": "^6.0.0",
+    "mocha": "^3.3.0",
+    "serverless": "^1.11.0",
+    "chalk": "^1.1.3"
+  }
+}
