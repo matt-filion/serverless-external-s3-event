@@ -3,7 +3,7 @@
  * Get it, cuz he is a 'transformer'....
  */
 class OptimusPrime {
-  constructor(this.lambdaPermissions){
+  constructor(lambdaPermissions){
     this.lambdaPermissions = lambdaPermissions;
   }
 
