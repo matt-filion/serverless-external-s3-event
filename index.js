@@ -81,7 +81,7 @@ class S3Deploy {
         bucket.NotificationConfiguration.LambdaFunctionConfigurations.forEach((cfg) => {
           let deployed = results.functions.find((fn) => fn.deployedName === cfg.LambdaFunctionArn);
           if (!deployed) {
-            throw new Error("It looks like the function has not yet beend deployed. You must use 'sls deploy' before doing 'sls s3deploy.");
+            throw new Error("It looks like the function has not yet been deployed. You must use 'sls deploy' before doing 'sls s3deploy.");
           }
           //get the full arn!
           let output = info.gatheredData.outputs.find((out) => out.OutputValue.indexOf(deployed.deployedName) !== -1);
