@@ -1,6 +1,11 @@
 # Why?
 Overcomes the CloudFormation limitation on attaching an event to an uncontrolled bucket, for Serverless.com 1.9+. See [this stackoverflow issue](http://serverfault.com/questions/610788/using-cloudformation-with-an-existing-s3-bucket) for more information.
 
+The serverless deploy command (```sls deploy```) will trigger a check to ensure the buckets already exist before deployment.
+Post successfull deployment, the bucket event will be attached.
+
+The serverless remove command (```sls remove```) will remove the bucket event before removing the cloudformation stack
+
 # How?
 
 **1. NPM dependency**
@@ -59,52 +64,14 @@ functions:
             - suffix: .jpg
 ```
 
-**Run the command.**
-_I could not figure out how to hook into the existing deploy behaviors built into Serverless.com's deploy command. So as a result you have to run a separate command AFTER you do ```sls deploy```._
+**Manually invoking the deploy command.**
+_To manually attach the event, you can run ```sls deploy```._
+
 
 ```
-> sls deploy
-Serverless: Zipping service...
-Serverless: Uploading CloudFormation file to S3...
-Serverless: Removing old service versions...
-Serverless: Uploading .zip file to S3...
-Serverless: Updating Stack...
-Serverless: Checking stack update progress...
-..
-Serverless: Deployment successful!
-
-Service Information
-service: service-name
-stage: stage
-region: region
-endpoints:
-  None
-functions:
-  someFunction: arn:aws:lambda:region:accountid:function:service-name-stage-someFunction
 
 > sls s3deploy
 Attaching event(s) to: someFunction
 Done.
 
-```
-
-**I haz an error**
-The only one I see, and quite regularly during my testing, is a result of having the wrong bucket name configured in the serverless.yml, either in the IAM configuration providing permissions or in the function definition where I'm attaching the event. Make sure your bucket names are right.
-
-```
->sls s3deploy
-
-Attaching event(s) to: BUCKET_NAME
-
-  Invalid Argument ---------------------------------------
-
-     Unable to validate the following destination configurations
-
-     For debugging logs, run again after setting SLS_DEBUG env var.
-
-  Get Support --------------------------------------------
-     Docs:          docs.serverless.com
-     Bugs:          github.com/serverless/serverless/issues
-
-     Please report this error. We think it might be a bug.
 ```
