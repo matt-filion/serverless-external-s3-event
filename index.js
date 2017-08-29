@@ -36,19 +36,65 @@ class S3Deploy {
       },
     };
     this.hooks = {
-      'after:s3deploy:events': this.afterS3DeployFunctions.bind(this)
+      'before:deploy:deploy': this.checkBucketsExist.bind(this),
+      'after:deploy:deploy': this.afterS3DeployFunctions.bind(this),
+      'after:s3deploy:events': this.afterS3DeployFunctions.bind(this),
+      'before:remove:remove': this.s3BucketRemoveEvent.bind(this)
     };
   }
 
-  afterS3DeployFunctions() {
-    let funcObjs = this.service.getAllFunctions().map(name => this.service.getFunction(name));
+  checkBucketsExist() {
 
+    this.serverless.cli.log(`Checking existing buckets actually exist`);
+
+    let bucketNotifications = this.getBucketNotifications();
+    
+    //skip empty configs
+    if (bucketNotifications.length === 0) {
+      return Promise.resolve();
+    }
+
+    
+    return this.provider.request('S3', 'listBuckets', {}, this.options.stage, this.options.region)
+      .then((returnedBuckets)=>{
+
+        if(!returnedBuckets.Buckets) {
+          return Promise.reject('No buckets returned');  
+        }
+
+        const existingBuckets = returnedBuckets.Buckets.reduce((allBuckets, thisBucket) => {
+          allBuckets.push(thisBucket.Name);
+          return allBuckets;
+        }, []);
+
+        const expectedBuckets = bucketNotifications.reduce((allBuckets, thisBucket) => {
+          allBuckets.push(thisBucket.Bucket);
+          return allBuckets;
+        }, []);
+
+        const missingBuckets = expectedBuckets.filter(function (elem) {
+            return existingBuckets.indexOf(elem) < 0;
+        });
+
+        if(missingBuckets.length > 0) {
+          return Promise.reject(`Missing the following buckets: ${missingBuckets.join(',')}`);
+        }
+
+        return this.serverless.cli.log('All existing buckets actually exist');
+
+      });
+  }
+
+  getBucketNotifications() {
+
+    let funcObjs = this.service.getAllFunctions().map(name => this.service.getFunction(name));
+    
     //turn functions into the config objects (flattened)
     let lambdaConfigs = funcObjs.map(obj => this.getLambdaFunctionConfigurationsFromFunction(obj))
     .reduce((flattened, c) => flattened = flattened.concat(c), []);
 
     //collate by bucket
-    let bucketNotifications = lambdaConfigs.reduce((buckets, c) => {
+    return lambdaConfigs.reduce((buckets, c) => {
       // TODO simplify this
       //find existing array with bucket name
       let bucketLambdaConfigs = buckets.find(existing => existing.Bucket === c.bucket);
@@ -62,6 +108,12 @@ class S3Deploy {
       return buckets;
     }, []);
 
+  }
+
+  afterS3DeployFunctions() {
+    
+    let bucketNotifications = this.getBucketNotifications();
+
     //skip empty configs
     if (bucketNotifications.length === 0) {
       return Promise.resolve();
@@ -69,20 +121,26 @@ class S3Deploy {
 
     //find the info plugin
     let info = this.serverless.pluginManager.getPlugins().find(i => i.constructor.name === 'AwsInfo');
+
     //use it to get deployed functions to check for things to attach to
     return info.getStackInfo().then(() => {
+
       // TODO make this a separate method
       let results = info.gatheredData.info;
 
       let permsPromises = [];
       let buckets = [];
+
       bucketNotifications.forEach((bucket) => {
+
         //check this buckets notifications and replace the arn with the real one
         bucket.NotificationConfiguration.LambdaFunctionConfigurations.forEach((cfg) => {
+
           let deployed = results.functions.find((fn) => fn.deployedName === cfg.LambdaFunctionArn);
           if (!deployed) {
             throw new Error("It looks like the function has not yet been deployed. You must use 'sls deploy' before doing 'sls s3deploy.");
           }
+
           //get the full arn!
           let output = info.gatheredData.outputs.find((out) => out.OutputValue.indexOf(deployed.deployedName) !== -1);
           let arn = output.OutputValue.replace(/:\d+$/, ''); //unless using qualifier?
@@ -100,6 +158,7 @@ class S3Deploy {
             //Qualifier to point at alias or version
             SourceArn: `arn:aws:s3:::${bucket.Bucket}`
           };
+
           permsPromises.push(this.lambdaPermApi(permConfig));
         });
 
@@ -215,6 +274,57 @@ class S3Deploy {
       //put the new policy
       return this.provider.request('Lambda', 'addPermission', cfg, this.options.stage, this.options.region);
     });
+  }
+
+  s3BucketRemoveEvent (cfg) {
+
+    this.serverless.cli.log(`Removing existing s3 bucket events`);
+
+    let bucketNotifications = this.getBucketNotifications();
+
+    //skip if there are no configurations
+    if (bucketNotifications.length === 0) {
+      return Promise.resolve();
+    }
+
+    return Promise.all(bucketNotifications.map((cfg) => {
+
+      return this.provider.request('S3', 'getBucketNotificationConfiguration', { Bucket: cfg.Bucket }, this.options.stage, this.options.region)
+          .then((bucketConfig) => {
+
+            let notificationConfig = {remove: false, params: {}};
+
+            //find lambda with our ARN or ID, replace it or add a new one
+            cfg.NotificationConfiguration.LambdaFunctionConfigurations.forEach((ourcfg) => {
+
+              let currentConfigIndex = bucketConfig.LambdaFunctionConfigurations.findIndex((s3cfg) => ourcfg.LambdaFunctionArn === s3cfg.LambdaFunctionArn || ourcfg.Id === s3cfg.Id);
+              if (currentConfigIndex !== -1) {
+
+                //just remove it
+                bucketConfig.LambdaFunctionConfigurations.splice(currentConfigIndex, 1);
+                notificationConfig.remove = true;
+              }
+
+            });
+
+            notificationConfig.params = { Bucket: cfg.Bucket, NotificationConfiguration: bucketConfig };
+
+            return notificationConfig;
+
+          })
+          .then((cfg) => {
+            
+            if(!cfg.remove) {
+              return;
+            }
+
+            return this.provider.request('S3', 'putBucketNotificationConfiguration', cfg.params, this.options.stage, this.options.region);
+            
+          });
+
+      }))
+      .then(() => this.serverless.cli.log('Removed all existing bucket events'));
+
   }
 
 }
