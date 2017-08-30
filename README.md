@@ -65,7 +65,8 @@ functions:
 ```
 
 **Manually invoking the deploy command.**
-_To manually attach the event, you can run ```sls deploy```._
+_To manually attach the event, you can run ```sls s3deploy```._
+_To manually remove the event, you can run ```sls s3remove```._
 
 
 ```
