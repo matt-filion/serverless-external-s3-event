@@ -18,6 +18,25 @@ class S3Deploy {
 
     this.commands    = {
       s3deploy: {
+        usage: 'Attaches lambda notification events to existing s3 buckets',
+        lifecycleEvents: [
+          'events'
+        ],
+        options: {
+          stage: {
+            usage: 'Stage of the service',
+            shortcut: 's',
+            required: false,
+          },
+          region: {
+            usage: 'Region of the service',
+            shortcut: 'r',
+            required: false,
+          },
+        },
+      },
+      s3remove: {
+        usage: 'Removes lambda notification events from existing s3 buckets',
         lifecycleEvents: [
           'events'
         ],
@@ -36,10 +55,16 @@ class S3Deploy {
       },
     };
     this.hooks = {
+
+      // Serverless framework event hooks
       'before:deploy:deploy': this.checkBucketsExist.bind(this),
       'after:deploy:deploy': this.afterS3DeployFunctions.bind(this),
+      'before:remove:remove': this.s3BucketRemoveEvent.bind(this),
+
+      // External S3 event hooks
       'after:s3deploy:events': this.afterS3DeployFunctions.bind(this),
-      'before:remove:remove': this.s3BucketRemoveEvent.bind(this)
+      'after:s3remove:events': this.s3BucketRemoveEvent.bind(this)
+
     };
   }
 
@@ -110,6 +135,59 @@ class S3Deploy {
 
   }
 
+  getFunctionArnFromDeployedStack(info, deployedName) {
+
+    let output = info.gatheredData.outputs.find((out) => {
+      return out.OutputValue.indexOf(deployedName) !== -1;
+    });
+
+    if(output) {
+      return Promise.resolve(output.OutputValue.replace(/:\d+$/, '')); //unless using qualifier?
+    }
+
+    // Unable to find the function in the output
+    // Check if they explicitly stopped function versioning
+    if(info.serverless.service.provider.versionFunctions === false) {
+      
+      return this.provider.request('Lambda', 'getFunction', {FunctionName: deployedName}, this.options.stage, this.options.region).then((functionInfo) => {
+        return functionInfo.Configuration.FunctionArn;
+      });
+
+    }
+
+    return Promise.reject('Unable to retreive function arn');
+  }
+
+  getLambdaFunctionConfigurationFromDeployedStack(info, bucket, cfg) {
+
+    // TODO make this a separate method
+    let results = info.gatheredData.info;
+
+    let deployed = results.functions.find((fn) => fn.deployedName === cfg.LambdaFunctionArn);
+
+    if (!deployed) {
+      throw new Error("It looks like the function has not yet been deployed. You must use 'sls deploy' before doing 'sls s3deploy.");
+    }
+  
+    return this.getFunctionArnFromDeployedStack(info, deployed.deployedName).then((arn) => {
+
+      //replace placeholder ARN with final
+      cfg.LambdaFunctionArn = arn;
+      this.serverless.cli.log(`Attaching ${deployed.deployedName} to ${bucket.Bucket} ${cfg.Events}...`);
+
+      //attach the bucket permission to the lambda
+      return {
+        Action: "lambda:InvokeFunction",
+        FunctionName: deployed.deployedName,
+        Principal: 's3.amazonaws.com',
+        StatementId: `${deployed.deployedName}-${bucket.Bucket.replace(/[\.\:\*]/g,'')}`, // TODO hash the entire cfg? in case multiple
+        //Qualifier to point at alias or version
+        SourceArn: `arn:aws:s3:::${bucket.Bucket}`
+      };
+
+    });
+  }
+
   afterS3DeployFunctions() {
     
     let bucketNotifications = this.getBucketNotifications();
@@ -125,50 +203,30 @@ class S3Deploy {
     //use it to get deployed functions to check for things to attach to
     return info.getStackInfo().then(() => {
 
-      // TODO make this a separate method
-      let results = info.gatheredData.info;
-
       let permsPromises = [];
       let buckets = [];
+      let configPromises = [];
 
       bucketNotifications.forEach((bucket) => {
 
         //check this buckets notifications and replace the arn with the real one
         bucket.NotificationConfiguration.LambdaFunctionConfigurations.forEach((cfg) => {
-
-          let deployed = results.functions.find((fn) => fn.deployedName === cfg.LambdaFunctionArn);
-          if (!deployed) {
-            throw new Error("It looks like the function has not yet been deployed. You must use 'sls deploy' before doing 'sls s3deploy.");
-          }
-
-          //get the full arn!
-          let output = info.gatheredData.outputs.find((out) => out.OutputValue.indexOf(deployed.deployedName) !== -1);
-          let arn = output.OutputValue.replace(/:\d+$/, ''); //unless using qualifier?
-
-          //replace placeholder ARN with final
-          cfg.LambdaFunctionArn = arn;
-          this.serverless.cli.log(`Attaching ${deployed.deployedName} to ${bucket.Bucket} ${cfg.Events}...`);
-
-          //attach the bucket permission to the lambda
-          let permConfig = {
-            Action: "lambda:InvokeFunction",
-            FunctionName: deployed.deployedName,
-            Principal: 's3.amazonaws.com',
-            StatementId: `${deployed.deployedName}-${bucket.Bucket.replace(/[\.\:\*]/g,'')}`, // TODO hash the entire cfg? in case multiple
-            //Qualifier to point at alias or version
-            SourceArn: `arn:aws:s3:::${bucket.Bucket}`
-          };
-
-          permsPromises.push(this.lambdaPermApi(permConfig));
+          configPromises.push(this.getLambdaFunctionConfigurationFromDeployedStack(info, bucket, cfg));
         });
 
         //attach the event notification to the bucket
         buckets.push(bucket);
+
       });
 
       //run permsPromises before buckets
-      return Promise.all(permsPromises)
-      .then(() => Promise.all(buckets.map((b) => this.s3EventApi(b))));
+      return Promise.all(configPromises)
+      .then((permConfigs) => { 
+        permConfigs.map((permConfig) => {
+          permsPromises.push(this.lambdaPermApi(permConfig));
+        });
+        return Promise.all(permsPromises);
+      }).then(() => Promise.all(buckets.map((b) => this.s3EventApi(b))));
     })
     .then(() => this.serverless.cli.log('Done.'));
   }
@@ -222,8 +280,9 @@ class S3Deploy {
         //push new config
         bucketConfig.LambdaFunctionConfigurations.push(ourcfg);
       });
-      debugger;
+      
       return { Bucket: cfg.Bucket, NotificationConfiguration: bucketConfig };
+
     }).then((cfg) => {
       return this.provider.request('S3', 'putBucketNotificationConfiguration', cfg, this.options.stage, this.options.region);
     });
@@ -276,9 +335,7 @@ class S3Deploy {
     });
   }
 
-  s3BucketRemoveEvent (cfg) {
-
-    this.serverless.cli.log(`Removing existing s3 bucket events`);
+  s3BucketRemoveEvent () {
 
     let bucketNotifications = this.getBucketNotifications();
 
@@ -296,6 +353,8 @@ class S3Deploy {
 
             //find lambda with our ARN or ID, replace it or add a new one
             cfg.NotificationConfiguration.LambdaFunctionConfigurations.forEach((ourcfg) => {
+              
+              this.serverless.cli.log(`Removing ${ourcfg.LambdaFunctionArn} from ${cfg.Bucket} ${ourcfg.Events}...`);
 
               let currentConfigIndex = bucketConfig.LambdaFunctionConfigurations.findIndex((s3cfg) => ourcfg.LambdaFunctionArn === s3cfg.LambdaFunctionArn || ourcfg.Id === s3cfg.Id);
               if (currentConfigIndex !== -1) {
