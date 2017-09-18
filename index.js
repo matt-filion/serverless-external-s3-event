@@ -275,16 +275,35 @@ class S3Deploy {
     //this is read/modify/put
     return this.provider.request('S3', 'getBucketNotificationConfiguration', { Bucket: cfg.Bucket }, this.options.stage, this.options.region)
     .then((bucketConfig) => {
-      //find lambda with our ARN or ID, replace it or add a new one
-      cfg.NotificationConfiguration.LambdaFunctionConfigurations.forEach((ourcfg) => {
-        let currentConfigIndex = bucketConfig.LambdaFunctionConfigurations.findIndex((s3cfg) => ourcfg.LambdaFunctionArn === s3cfg.LambdaFunctionArn || ourcfg.Id === s3cfg.Id);
-        if (currentConfigIndex !== -1) {
-          //just remove it
-          bucketConfig.LambdaFunctionConfigurations.splice(currentConfigIndex, 1);
+
+      var found = false
+      
+      // This updates existing S3 notifications (or it tries to)
+      for (var i = 0; i < cfg.NotificationConfiguration.LambdaFunctionConfigurations.length; i++) {
+        found = false;
+        for (var j = 0; j < bucketConfig.LambdaFunctionConfigurations.length; j++) {
+          if (bucketConfig['LambdaFunctionConfigurations'][j]['Id'] == cfg.NotificationConfiguration.LambdaFunctionConfigurations[i]['Id']) {
+            found = true; bucketConfig['LambdaFunctionConfigurations'][j] = cfg.NotificationConfiguration.LambdaFunctionConfigurations[i];
+          }
         }
-        //push new config
-        bucketConfig.LambdaFunctionConfigurations.push(ourcfg);
-      });
+        if (!found) { bucketConfig['LambdaFunctionConfigurations'].push(cfg.NotificationConfiguration.LambdaFunctionConfigurations[i]) }
+      }
+      
+      // This removes entries that are no longer in your notifications config
+      var deleteIndexes = []
+      for (var i = 0; i < cfg.NotificationConfiguration.LambdaFunctionConfigurations.length; i++) {
+        found = false;
+        for (var j = 0; j < bucketConfig.LambdaFunctionConfigurations.length; j++) {
+          if (bucketConfig['LambdaFunctionConfigurations'][j]['Id'] == cfg.NotificationConfiguration.LambdaFunctionConfigurations[i]['Id']) {
+            found = true;
+          }
+          if (!found) deleteIndexes.push(j)
+        }
+      }
+      // Have to do this separately, can't do it within' the for loop above or the for loop fails
+      deleteIndexes.forEach(function (index) {
+        bucketConfig['LambdaFunctionConfigurations'].splice(index, 1);
+      })
       
       return { Bucket: cfg.Bucket, NotificationConfiguration: bucketConfig };
 
