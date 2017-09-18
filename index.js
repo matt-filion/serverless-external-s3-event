@@ -1,4 +1,5 @@
 'use strict';
+var crypto = require('crypto');
 
 class S3Deploy {
   constructor(serverless, options) {
@@ -174,13 +175,17 @@ class S3Deploy {
       //replace placeholder ARN with final
       cfg.LambdaFunctionArn = arn;
       this.serverless.cli.log(`Attaching ${deployed.deployedName} to ${bucket.Bucket} ${cfg.Events}...`);
+      
+      // Build our object we hash to use in the statement id
+      var hashObj = {bucket: bucket['Bucket'], Events: cfg['Events']}
+      if ("Filter" in cfg) { hashObj['Filter'] = cfg['Filter'] }
 
       //attach the bucket permission to the lambda
       return {
         Action: "lambda:InvokeFunction",
         FunctionName: deployed.deployedName,
         Principal: 's3.amazonaws.com',
-        StatementId: `${deployed.deployedName}-${bucket.Bucket.replace(/[\.\:\*]/g,'')}`, // TODO hash the entire cfg? in case multiple
+        StatementId: `${deployed.deployedName}-` + crypto.createHash('md5').update(JSON.stringify(hashObj)).digest("hex"),
         //Qualifier to point at alias or version
         SourceArn: `arn:aws:s3:::${bucket.Bucket}`
       };
@@ -241,7 +246,7 @@ class S3Deploy {
       const returnObject = {
         bucket: event.existingS3.bucket,
         config: {
-          Id: 'trigger-' + functionObj.name + '-when-' + bucketEvents.join().replace(/[\.\:\*]/g,''), // TODO hash the filter?
+          Id: 'trigger-' + functionObj.name + '-when-' + bucketEvents.join().replace(/[\.\:\*]/g,'') + '-' + crypto.createHash('md5').update(JSON.stringify({bucketEvents, eventRules})).digest("hex"),
           LambdaFunctionArn: functionObj.name,
           Events: bucketEvents
         }
