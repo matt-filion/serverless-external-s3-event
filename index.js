@@ -172,14 +172,31 @@ class S3Deploy {
   
     return this.getFunctionArnFromDeployedStack(info, deployed.deployedName).then((arn) => {
 
+      // Build our object we hash to use in the statement id, and for informational text output
+      var filterText = "", hashObj = {bucket: bucket['Bucket'], Events: cfg['Events']}
+      if ("Filter" in cfg) { 
+        hashObj['Filter'] = cfg['Filter'];
+        filterText = "for" 
+        if (cfg['Filter']['Key']['FilterRules'][0]['Name'] == 'prefix') {
+          filterText += " prefix: " + cfg['Filter']['Key']['FilterRules'][0]['Value']
+        }
+        if (cfg['Filter']['Key']['FilterRules'][0]['Name'] == 'suffix') {
+          filterText += " suffix: " + cfg['Filter']['Key']['FilterRules'][0]['Value']
+        }
+        if (cfg['Filter']['Key']['FilterRules'].length > 1) {
+          if (cfg['Filter']['Key']['FilterRules'][1]['Name'] == 'prefix') {
+            filterText += " prefix: " + cfg['Filter']['Key']['FilterRules'][1]['Value']
+          }
+          if (cfg['Filter']['Key']['FilterRules'][1]['Name'] == 'suffix') {
+            filterText += " suffix: " + cfg['Filter']['Key']['FilterRules'][1]['Value']
+          }
+        }
+      }
+
       //replace placeholder ARN with final
       cfg.LambdaFunctionArn = arn;
-      this.serverless.cli.log(`Attaching ${deployed.deployedName} to ${bucket.Bucket} ${cfg.Events}...`);
+      this.serverless.cli.log(`Attaching ${deployed.deployedName} to ${bucket.Bucket} ${cfg.Events} ${filterText} ...`);
       
-      // Build our object we hash to use in the statement id
-      var hashObj = {bucket: bucket['Bucket'], Events: cfg['Events']}
-      if ("Filter" in cfg) { hashObj['Filter'] = cfg['Filter'] }
-
       //attach the bucket permission to the lambda
       return {
         Action: "lambda:InvokeFunction",
@@ -275,30 +292,34 @@ class S3Deploy {
     //this is read/modify/put
     return this.provider.request('S3', 'getBucketNotificationConfiguration', { Bucket: cfg.Bucket }, this.options.stage, this.options.region)
     .then((bucketConfig) => {
-
-      var found = false
-      
       // This updates existing S3 notifications (or it tries to)
-      for (var i = 0; i < cfg.NotificationConfiguration.LambdaFunctionConfigurations.length; i++) {
+      var servicePrefix = "", found = false;
+      for (var i = 0; i < cfg['NotificationConfiguration']['LambdaFunctionConfigurations'].length; i++) {
+        // This is something we use below to detect whether existing notifications came from us, so we don't delete others notifications
+        servicePrefix = cfg['NotificationConfiguration']['LambdaFunctionConfigurations'][i]['Id'].slice(0, -32)
+        // And to track if we found it
         found = false;
-        for (var j = 0; j < bucketConfig.LambdaFunctionConfigurations.length; j++) {
-          if (bucketConfig['LambdaFunctionConfigurations'][j]['Id'] == cfg.NotificationConfiguration.LambdaFunctionConfigurations[i]['Id']) {
-            found = true; bucketConfig['LambdaFunctionConfigurations'][j] = cfg.NotificationConfiguration.LambdaFunctionConfigurations[i];
+        for (var j = 0; j < bucketConfig['LambdaFunctionConfigurations'].length; j++) {
+          if (bucketConfig['LambdaFunctionConfigurations'][j]['Id'] == cfg['NotificationConfiguration']['LambdaFunctionConfigurations'][i]['Id']) {
+            found = true; bucketConfig['LambdaFunctionConfigurations'][j] = cfg['NotificationConfiguration']['LambdaFunctionConfigurations'][i];
           }
         }
-        if (!found) { bucketConfig['LambdaFunctionConfigurations'].push(cfg.NotificationConfiguration.LambdaFunctionConfigurations[i]) }
+        if (!found) { bucketConfig['LambdaFunctionConfigurations'].push(cfg['NotificationConfiguration']['LambdaFunctionConfigurations'][i]) }
       }
       
       // This removes entries that are no longer in your notifications config
       var deleteIndexes = []
-      for (var j = 0; j < bucketConfig.LambdaFunctionConfigurations.length; j++) {
+      for (var j = 0; j < bucketConfig['LambdaFunctionConfigurations'].length; j++) {
         found = false;
-        for (var i = 0; i < cfg.NotificationConfiguration.LambdaFunctionConfigurations.length; i++) {
-          if (bucketConfig['LambdaFunctionConfigurations'][j]['Id'] == cfg.NotificationConfiguration.LambdaFunctionConfigurations[i]['Id']) {
+        for (var i = 0; i < cfg['NotificationConfiguration']['LambdaFunctionConfigurations'].length; i++) {
+          if (bucketConfig['LambdaFunctionConfigurations'][j]['Id'] == cfg['NotificationConfiguration']['LambdaFunctionConfigurations'][i]['Id']) {
             found = true;
           }
         }
-        if (!found) deleteIndexes.push(j)
+        // Check if this has a prefix of our service name before removing this from the notification configuration, so we don't accidentally delete notifications from other systems/stacks/people
+        if (!found && bucketConfig['LambdaFunctionConfigurations'][j]['Id'].startsWith(servicePrefix)) {
+          deleteIndexes.push(j)
+        }
       }
       // Have to do this separately, can't do it within' the for loop above or the for loop fails
       deleteIndexes.forEach(function (index) {
