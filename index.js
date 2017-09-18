@@ -10,13 +10,6 @@ class S3Deploy {
     this.providerConfig = this.service.provider;
     this.functionPolicies = {};
 
-    this.options.stage = this.options.stage
-      || (this.serverless.service.provider && this.serverless.service.provider.stage)
-      || 'dev';
-    this.options.region = this.options.region
-      || (this.serverless.service.provider && this.serverless.service.provider.region)
-      || 'us-east-1';
-
     this.commands    = {
       s3deploy: {
         usage: 'Attaches lambda notification events to existing s3 buckets',
@@ -81,7 +74,7 @@ class S3Deploy {
     }
 
     
-    return this.provider.request('S3', 'listBuckets', {}, this.options.stage, this.options.region)
+    return this.provider.request('S3', 'listBuckets', {}, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`)
       .then((returnedBuckets)=>{
 
         if(!returnedBuckets.Buckets) {
@@ -150,7 +143,7 @@ class S3Deploy {
     // Check if they explicitly stopped function versioning
     if(info.serverless.service.provider.versionFunctions === false) {
       
-      return this.provider.request('Lambda', 'getFunction', {FunctionName: deployedName}, this.options.stage, this.options.region).then((functionInfo) => {
+      return this.provider.request('Lambda', 'getFunction', {FunctionName: deployedName}, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`).then((functionInfo) => {
         return functionInfo.Configuration.FunctionArn;
       });
 
@@ -290,7 +283,7 @@ class S3Deploy {
 
   s3EventApi(cfg) {
     //this is read/modify/put
-    return this.provider.request('S3', 'getBucketNotificationConfiguration', { Bucket: cfg.Bucket }, this.options.stage, this.options.region)
+    return this.provider.request('S3', 'getBucketNotificationConfiguration', { Bucket: cfg.Bucket }, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`)
     .then((bucketConfig) => {
       // This updates existing S3 notifications (or it tries to)
       var servicePrefix = "", found = false;
@@ -329,7 +322,7 @@ class S3Deploy {
       return { Bucket: cfg.Bucket, NotificationConfiguration: bucketConfig };
 
     }).then((cfg) => {
-      return this.provider.request('S3', 'putBucketNotificationConfiguration', cfg, this.options.stage, this.options.region);
+      return this.provider.request('S3', 'putBucketNotificationConfiguration', cfg, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`);
     });
   }
 
@@ -340,7 +333,7 @@ class S3Deploy {
     if (this.functionPolicies[cfg.FunctionName]) {
       existingPolicyPromise = Promise.resolve(this.functionPolicies[cfg.FunctionName]);
     } else {
-      existingPolicyPromise = this.provider.request('Lambda', 'getPolicy', { FunctionName: cfg.FunctionName }, this.options.stage, this.options.region)
+      existingPolicyPromise = this.provider.request('Lambda', 'getPolicy', { FunctionName: cfg.FunctionName }, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`)
       .then((result) => {
         let policy = JSON.parse(result.Policy);
         this.functionPolicies[cfg.FunctionName] = policy;
@@ -360,7 +353,7 @@ class S3Deploy {
       let ourStatement = policy && policy.Statement.find((stmt) => stmt.Sid === cfg.StatementId);
       if (ourStatement) {
         //delete the statement before adding a new one
-        return this.provider.request('Lambda', 'removePermission', { FunctionName: cfg.FunctionName, StatementId: cfg.StatementId }, this.options.stage, this.options.region);
+        return this.provider.request('Lambda', 'removePermission', { FunctionName: cfg.FunctionName, StatementId: cfg.StatementId }, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`);
       } else {
         //just resolve
         return Promise.resolve();
@@ -376,7 +369,7 @@ class S3Deploy {
     })
     .then(() => {
       //put the new policy
-      return this.provider.request('Lambda', 'addPermission', cfg, this.options.stage, this.options.region);
+      return this.provider.request('Lambda', 'addPermission', cfg, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`);
     });
   }
 
@@ -391,7 +384,7 @@ class S3Deploy {
 
     return Promise.all(bucketNotifications.map((cfg) => {
 
-      return this.provider.request('S3', 'getBucketNotificationConfiguration', { Bucket: cfg.Bucket }, this.options.stage, this.options.region)
+      return this.provider.request('S3', 'getBucketNotificationConfiguration', { Bucket: cfg.Bucket }, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`)
           .then((bucketConfig) => {
 
             let notificationConfig = {remove: false, params: {}};
@@ -422,7 +415,7 @@ class S3Deploy {
               return;
             }
 
-            return this.provider.request('S3', 'putBucketNotificationConfiguration', cfg.params, this.options.stage, this.options.region);
+            return this.provider.request('S3', 'putBucketNotificationConfiguration', cfg.params, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`);
             
           });
 
