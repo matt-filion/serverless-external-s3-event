@@ -291,14 +291,14 @@ class S3Deploy {
       
       // This removes entries that are no longer in your notifications config
       var deleteIndexes = []
-      for (var i = 0; i < cfg.NotificationConfiguration.LambdaFunctionConfigurations.length; i++) {
+      for (var j = 0; j < bucketConfig.LambdaFunctionConfigurations.length; j++) {
         found = false;
-        for (var j = 0; j < bucketConfig.LambdaFunctionConfigurations.length; j++) {
+        for (var i = 0; i < cfg.NotificationConfiguration.LambdaFunctionConfigurations.length; i++) {
           if (bucketConfig['LambdaFunctionConfigurations'][j]['Id'] == cfg.NotificationConfiguration.LambdaFunctionConfigurations[i]['Id']) {
             found = true;
           }
-          if (!found) deleteIndexes.push(j)
         }
+        if (!found) deleteIndexes.push(j)
       }
       // Have to do this separately, can't do it within' the for loop above or the for loop fails
       deleteIndexes.forEach(function (index) {
