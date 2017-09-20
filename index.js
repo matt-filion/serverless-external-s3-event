@@ -1,4 +1,5 @@
 'use strict';
+var crypto = require('crypto');
 
 class S3Deploy {
   constructor(serverless, options) {
@@ -8,13 +9,6 @@ class S3Deploy {
     this.provider    = this.serverless.getProvider('aws');
     this.providerConfig = this.service.provider;
     this.functionPolicies = {};
-
-    this.options.stage = this.options.stage
-      || (this.serverless.service.provider && this.serverless.service.provider.stage)
-      || 'dev';
-    this.options.region = this.options.region
-      || (this.serverless.service.provider && this.serverless.service.provider.region)
-      || 'us-east-1';
 
     this.commands    = {
       s3deploy: {
@@ -80,7 +74,7 @@ class S3Deploy {
     }
 
     
-    return this.provider.request('S3', 'listBuckets', {}, this.options.stage, this.options.region)
+    return this.provider.request('S3', 'listBuckets', {}, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`)
       .then((returnedBuckets)=>{
 
         if(!returnedBuckets.Buckets) {
@@ -149,7 +143,7 @@ class S3Deploy {
     // Check if they explicitly stopped function versioning
     if(info.serverless.service.provider.versionFunctions === false) {
       
-      return this.provider.request('Lambda', 'getFunction', {FunctionName: deployedName}, this.options.stage, this.options.region).then((functionInfo) => {
+      return this.provider.request('Lambda', 'getFunction', {FunctionName: deployedName}, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`).then((functionInfo) => {
         return functionInfo.Configuration.FunctionArn;
       });
 
@@ -171,16 +165,37 @@ class S3Deploy {
   
     return this.getFunctionArnFromDeployedStack(info, deployed.deployedName).then((arn) => {
 
+      // Build our object we hash to use in the statement id, and for informational text output
+      var filterText = "", hashObj = {bucket: bucket['Bucket'], Events: cfg['Events']}
+      if ("Filter" in cfg) { 
+        hashObj['Filter'] = cfg['Filter'];
+        filterText = "for" 
+        if (cfg['Filter']['Key']['FilterRules'][0]['Name'] == 'prefix') {
+          filterText += " prefix: " + cfg['Filter']['Key']['FilterRules'][0]['Value']
+        }
+        if (cfg['Filter']['Key']['FilterRules'][0]['Name'] == 'suffix') {
+          filterText += " suffix: " + cfg['Filter']['Key']['FilterRules'][0]['Value']
+        }
+        if (cfg['Filter']['Key']['FilterRules'].length > 1) {
+          if (cfg['Filter']['Key']['FilterRules'][1]['Name'] == 'prefix') {
+            filterText += " prefix: " + cfg['Filter']['Key']['FilterRules'][1]['Value']
+          }
+          if (cfg['Filter']['Key']['FilterRules'][1]['Name'] == 'suffix') {
+            filterText += " suffix: " + cfg['Filter']['Key']['FilterRules'][1]['Value']
+          }
+        }
+      }
+
       //replace placeholder ARN with final
       cfg.LambdaFunctionArn = arn;
-      this.serverless.cli.log(`Attaching ${deployed.deployedName} to ${bucket.Bucket} ${cfg.Events}...`);
-
+      this.serverless.cli.log(`Attaching ${deployed.deployedName} to ${bucket.Bucket} ${cfg.Events} ${filterText} ...`);
+      
       //attach the bucket permission to the lambda
       return {
         Action: "lambda:InvokeFunction",
         FunctionName: deployed.deployedName,
         Principal: 's3.amazonaws.com',
-        StatementId: `${deployed.deployedName}-${bucket.Bucket.replace(/[\.\:\*]/g,'')}`, // TODO hash the entire cfg? in case multiple
+        StatementId: `${deployed.deployedName}-` + crypto.createHash('md5').update(JSON.stringify(hashObj)).digest("hex"),
         //Qualifier to point at alias or version
         SourceArn: `arn:aws:s3:::${bucket.Bucket}`
       };
@@ -241,7 +256,7 @@ class S3Deploy {
       const returnObject = {
         bucket: event.existingS3.bucket,
         config: {
-          Id: 'trigger-' + functionObj.name + '-when-' + bucketEvents.join().replace(/[\.\:\*]/g,''), // TODO hash the filter?
+          Id: 'trigger-' + functionObj.name + '-when-' + bucketEvents.join().replace(/[\.\:\*]/g,'') + '-' + crypto.createHash('md5').update(JSON.stringify({bucketEvents, eventRules})).digest("hex"),
           LambdaFunctionArn: functionObj.name,
           Events: bucketEvents
         }
@@ -268,23 +283,46 @@ class S3Deploy {
 
   s3EventApi(cfg) {
     //this is read/modify/put
-    return this.provider.request('S3', 'getBucketNotificationConfiguration', { Bucket: cfg.Bucket }, this.options.stage, this.options.region)
+    return this.provider.request('S3', 'getBucketNotificationConfiguration', { Bucket: cfg.Bucket }, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`)
     .then((bucketConfig) => {
-      //find lambda with our ARN or ID, replace it or add a new one
-      cfg.NotificationConfiguration.LambdaFunctionConfigurations.forEach((ourcfg) => {
-        let currentConfigIndex = bucketConfig.LambdaFunctionConfigurations.findIndex((s3cfg) => ourcfg.LambdaFunctionArn === s3cfg.LambdaFunctionArn || ourcfg.Id === s3cfg.Id);
-        if (currentConfigIndex !== -1) {
-          //just remove it
-          bucketConfig.LambdaFunctionConfigurations.splice(currentConfigIndex, 1);
+      // This updates existing S3 notifications (or it tries to)
+      var servicePrefix = "", found = false;
+      for (var i = 0; i < cfg['NotificationConfiguration']['LambdaFunctionConfigurations'].length; i++) {
+        // This is something we use below to detect whether existing notifications came from us, so we don't delete others notifications
+        servicePrefix = cfg['NotificationConfiguration']['LambdaFunctionConfigurations'][i]['Id'].slice(0, -32)
+        // And to track if we found it
+        found = false;
+        for (var j = 0; j < bucketConfig['LambdaFunctionConfigurations'].length; j++) {
+          if (bucketConfig['LambdaFunctionConfigurations'][j]['Id'] == cfg['NotificationConfiguration']['LambdaFunctionConfigurations'][i]['Id']) {
+            found = true; bucketConfig['LambdaFunctionConfigurations'][j] = cfg['NotificationConfiguration']['LambdaFunctionConfigurations'][i];
+          }
         }
-        //push new config
-        bucketConfig.LambdaFunctionConfigurations.push(ourcfg);
-      });
+        if (!found) { bucketConfig['LambdaFunctionConfigurations'].push(cfg['NotificationConfiguration']['LambdaFunctionConfigurations'][i]) }
+      }
+      
+      // This removes entries that are no longer in your notifications config
+      var deleteIndexes = []
+      for (var j = 0; j < bucketConfig['LambdaFunctionConfigurations'].length; j++) {
+        found = false;
+        for (var i = 0; i < cfg['NotificationConfiguration']['LambdaFunctionConfigurations'].length; i++) {
+          if (bucketConfig['LambdaFunctionConfigurations'][j]['Id'] == cfg['NotificationConfiguration']['LambdaFunctionConfigurations'][i]['Id']) {
+            found = true;
+          }
+        }
+        // Check if this has a prefix of our service name before removing this from the notification configuration, so we don't accidentally delete notifications from other systems/stacks/people
+        if (!found && bucketConfig['LambdaFunctionConfigurations'][j]['Id'].startsWith(servicePrefix)) {
+          deleteIndexes.push(j)
+        }
+      }
+      // Have to do this separately, can't do it within' the for loop above or the for loop fails
+      deleteIndexes.forEach(function (index) {
+        bucketConfig['LambdaFunctionConfigurations'].splice(index, 1);
+      })
       
       return { Bucket: cfg.Bucket, NotificationConfiguration: bucketConfig };
 
     }).then((cfg) => {
-      return this.provider.request('S3', 'putBucketNotificationConfiguration', cfg, this.options.stage, this.options.region);
+      return this.provider.request('S3', 'putBucketNotificationConfiguration', cfg, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`);
     });
   }
 
@@ -295,7 +333,7 @@ class S3Deploy {
     if (this.functionPolicies[cfg.FunctionName]) {
       existingPolicyPromise = Promise.resolve(this.functionPolicies[cfg.FunctionName]);
     } else {
-      existingPolicyPromise = this.provider.request('Lambda', 'getPolicy', { FunctionName: cfg.FunctionName }, this.options.stage, this.options.region)
+      existingPolicyPromise = this.provider.request('Lambda', 'getPolicy', { FunctionName: cfg.FunctionName }, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`)
       .then((result) => {
         let policy = JSON.parse(result.Policy);
         this.functionPolicies[cfg.FunctionName] = policy;
@@ -315,7 +353,7 @@ class S3Deploy {
       let ourStatement = policy && policy.Statement.find((stmt) => stmt.Sid === cfg.StatementId);
       if (ourStatement) {
         //delete the statement before adding a new one
-        return this.provider.request('Lambda', 'removePermission', { FunctionName: cfg.FunctionName, StatementId: cfg.StatementId }, this.options.stage, this.options.region);
+        return this.provider.request('Lambda', 'removePermission', { FunctionName: cfg.FunctionName, StatementId: cfg.StatementId }, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`);
       } else {
         //just resolve
         return Promise.resolve();
@@ -331,7 +369,7 @@ class S3Deploy {
     })
     .then(() => {
       //put the new policy
-      return this.provider.request('Lambda', 'addPermission', cfg, this.options.stage, this.options.region);
+      return this.provider.request('Lambda', 'addPermission', cfg, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`);
     });
   }
 
@@ -346,7 +384,7 @@ class S3Deploy {
 
     return Promise.all(bucketNotifications.map((cfg) => {
 
-      return this.provider.request('S3', 'getBucketNotificationConfiguration', { Bucket: cfg.Bucket }, this.options.stage, this.options.region)
+      return this.provider.request('S3', 'getBucketNotificationConfiguration', { Bucket: cfg.Bucket }, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`)
           .then((bucketConfig) => {
 
             let notificationConfig = {remove: false, params: {}};
@@ -377,7 +415,7 @@ class S3Deploy {
               return;
             }
 
-            return this.provider.request('S3', 'putBucketNotificationConfiguration', cfg.params, this.options.stage, this.options.region);
+            return this.provider.request('S3', 'putBucketNotificationConfiguration', cfg.params, `${this.serverless.service.provider.stage}`, `${this.serverless.service.provider.region}`);
             
           });
 
