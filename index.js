@@ -157,13 +157,13 @@ class S3Deploy {
     // TODO make this a separate method
     let results = info.gatheredData.info;
 
-    let deployed = results.functions.find((fn) => fn.deployedName === cfg.LambdaFunctionArn);
+    let deployed = results.functions.find((fn) => fn.name === cfg.LambdaFunctionArn);
 
     if (!deployed) {
       throw new Error("It looks like the function has not yet been deployed. You must use 'sls deploy' before doing 'sls s3deploy.");
     }
   
-    return this.getFunctionArnFromDeployedStack(info, deployed.deployedName).then((arn) => {
+    return this.getFunctionArnFromDeployedStack(info, deployed.name).then((arn) => {
 
       // Build our object we hash to use in the statement id, and for informational text output
       var filterText = "", hashObj = {bucket: bucket['Bucket'], Events: cfg['Events']}
@@ -193,7 +193,7 @@ class S3Deploy {
       //attach the bucket permission to the lambda
       return {
         Action: "lambda:InvokeFunction",
-        FunctionName: deployed.deployedName,
+        FunctionName: deployed.name,
         Principal: 's3.amazonaws.com',
         StatementId: `${deployed.deployedName}-` + crypto.createHash('md5').update(JSON.stringify(hashObj)).digest("hex"),
         //Qualifier to point at alias or version
