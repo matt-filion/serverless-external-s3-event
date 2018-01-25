@@ -1,3 +1,5 @@
+# Deprecated use https://www.npmjs.com/package/serverless-plugin-existing-s3
+
 # Why?
 Overcomes the CloudFormation limitation on attaching an event to an uncontrolled bucket, for Serverless.com 1.9+. See [this stackoverflow issue](http://serverfault.com/questions/610788/using-cloudformation-with-an-existing-s3-bucket) for more information.
 
