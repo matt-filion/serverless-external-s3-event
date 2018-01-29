@@ -66,8 +66,6 @@ class S3 {
       }
     }
 
-    console.log("putLambdaNotification payload",JSON.stringify(payload,' ',4));
-
     return this.provider.request('S3', 'putBucketNotificationConfiguration', payload)
       .catch( error => {
          if(this.options['continue-on-error']) {
