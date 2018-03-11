@@ -19,7 +19,8 @@
     "package.json",
     "Permissions.js",
     "S3.js",
-    "Transformer.js"
+    "Transformer.js",
+    "BucketConfig.js"
   ],
   "contributors": [
     {

@@ -3,6 +3,8 @@
 const Permissions = require('./Permissions');
 const S3          = require('./S3');
 const Transformer = require('./Transformer');
+const BucketConfig = require('./BucketConfig')
+
 
 class S3Deploy {
 
@@ -144,16 +146,9 @@ class S3Deploy {
 
           const s3Notifications = this.currentBucketNotifications.find( currentNotification => currentNotification.bucket === bucketConfiguration.name );
 
-          if(s3Notifications && s3Notifications.results.length !== 0) {
-          }
-          this.serverless.cli.log(JSON.stringify(s3Notifications))
-          this.serverless.cli.log(JSON.stringify(bucketConfiguration))
+          let newBucketConfig = new BucketConfig(s3Notifications)
 
-          let newBucketConfig = s3Notifications
-          this.serverless.cli.log(newBucketConfig)
-
-
-          return newBucketConfig;
+          return newBucketConfig.getConfig()
         })
         .map( bucketConfig => this.s3Facade.putLambdaNotification(bucketConfig) )
 
