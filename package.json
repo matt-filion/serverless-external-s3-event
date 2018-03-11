@@ -5,7 +5,9 @@
   "main": "index.js",
   "homepage": "https://github.com/matt-filion/serverless-external-s3-event",
   "dependencies": {},
-  "devDependencies": {},
+  "devDependencies": {
+    "mocha": "^5.0.4"
+  },
   "maintainers": [
     {
       "name": "Matt Filion",
@@ -56,5 +58,8 @@
     "notifications",
     "serverless",
     "serverless.com"
-  ]
+  ],
+  "scripts": {
+    "test": "mocha spec"
+  }
 }
