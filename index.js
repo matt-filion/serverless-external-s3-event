@@ -144,21 +144,19 @@ class S3Deploy {
 
           const s3Notifications = this.currentBucketNotifications.find( currentNotification => currentNotification.bucket === bucketConfiguration.name );
 
-          /*
-           * Remove any events that were previously created. No sense in sending them
-           *  across again.
-           */
           if(s3Notifications && s3Notifications.results.length !== 0) {
           }
+          this.serverless.cli.log(JSON.stringify(s3Notifications))
+          this.serverless.cli.log(JSON.stringify(bucketConfiguration))
 
 
           return bucketConfiguration;
         })
         .filter( bucketConfig => bucketConfig.events.length !== 0)
-      .map( bucketConfig => this.s3Facade.putLambdaNotification(bucketConfig) )
-      //        .map( bucketConfig => new Promise(function(resolve, reject){
-      //
-      //        }))
+      //.map( bucketConfig => this.s3Facade.putLambdaNotification(bucketConfig) )
+        .map( bucketConfig => new Promise(function(resolve, reject){
+          setTimeout(resolve, 100, 'done')
+        }))
 
 
       return Promise.all(promises)
