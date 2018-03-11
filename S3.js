@@ -20,50 +20,14 @@ class S3 {
   getLambdaNotifications(bucket){
     return this.provider.request('S3', 'getBucketNotificationConfiguration', { Bucket: bucket })
       .then( results => {
-        return {bucket,results:results.LambdaFunctionConfigurations};
+        return {bucket, results:results};
       })
   }
 
-  putLambdaNotification(bucketConfig){
+  putLambdaNotification(bucketConfig) {
     const payload = {
-      Bucket: bucketConfig.name,
-      NotificationConfiguration: {
-        LambdaFunctionConfigurations: bucketConfig.events.map( event => {
-          /*
-           * Filters are optional in the configuration.
-           */
-          let filter = undefined;
-
-          if(event.existingS3.rules && event.existingS3.rules.length !== 0) {
-            filter = { 
-              Key: {
-                FilterRules: event.existingS3.rules.map( rule => {
-                  const key = Object.keys(rule)[0];
-                  return {
-                    Name: key,
-                    Value: rule[key]
-                  }
-                })
-              }
-            }
-          }
-
-          /*
-           * Default to object creation, or accept the one or more event types provided.
-           */
-          const bucketEventTypes = event.existingS3.event || ['s3:ObjectCreated:*'];
-
-          /*
-           * http://docs.aws.amazon.com/AWSJavaScriptSDK/latest/AWS/S3.html#putBucketNotificationConfiguration-property
-           */
-          return {
-            Events: bucketEventTypes,
-            LambdaFunctionArn: event.arn,
-            Filter: filter,
-            Id: this.getId(event)
-          }
-        })
-      }
+      Bucket: bucketConfig.bucket,
+      NotificationConfiguration: bucketConfig.results
     }
 
     return this.provider.request('S3', 'putBucketNotificationConfiguration', payload)

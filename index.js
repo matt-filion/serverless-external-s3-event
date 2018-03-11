@@ -149,15 +149,13 @@ class S3Deploy {
           this.serverless.cli.log(JSON.stringify(s3Notifications))
           this.serverless.cli.log(JSON.stringify(bucketConfiguration))
 
+          let newBucketConfig = s3Notifications
+          this.serverless.cli.log(newBucketConfig)
 
-          return bucketConfiguration;
+
+          return newBucketConfig;
         })
-        .filter( bucketConfig => bucketConfig.events.length !== 0)
-      //.map( bucketConfig => this.s3Facade.putLambdaNotification(bucketConfig) )
-        .map( bucketConfig => new Promise(function(resolve, reject){
-          setTimeout(resolve, 100, 'done')
-        }))
-
+        .map( bucketConfig => this.s3Facade.putLambdaNotification(bucketConfig) )
 
       return Promise.all(promises)
         .then( results => this.serverless.cli.log(`s3 <-- Complete ${results.length} updates.`) );
