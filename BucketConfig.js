@@ -63,10 +63,32 @@ class BucketConfig {
   }
 
   removeObsoleteNotifications(fileConfig) {
-    this.serverless.cli.log(this.service)
-    this.serverless.cli.log(this.stage)
+    let notifications = this.config
+      .results
+      .LambdaFunctionConfigurations
+      .filter(n => this.isActive(n, fileConfig))
+    this.config.results.LambdaFunctionConfigurations = notifications
+  }
 
+  isActive(notification, fileConfig) {
+    return this.inConfig(notification, fileConfig) || this.notRelevant(notification, fileConfig)
+  }
 
+  inConfig(notification, fileConfig) {
+    let found = fileConfig.events.find((event) => {
+      let id = this.s3.getId(event)
+      return id == notification.Id && this.relevantARN(event.arn)
+    })
+    return found != undefined
+  }
+
+  notRelevant(notification, fileConfig) {
+    return (this.relevantARN(notification.LambdaFunctionArn) == null) || !notification.Id.startsWith("exS3-v2")
+  }
+
+  relevantARN(arn) {
+    let re = new RegExp(this.service + "-" + this.stage, 'gi')
+    return arn.match(re)
   }
 }
 
