@@ -12,7 +12,15 @@ describe('BucketConfig', function() {
     it('adds notifications existing only in the file to the config', function() {
       let bucketConfig = new BucketConfig(notifications)
       bucketConfig.addNewNotifications(configurations)
-      expect(bucketConfig.getConfig()).to.deep.eq(notificationsWithConfigurations)
+      expect(bucketConfig.getConfig()).to.deep.eq(notificationsWithConfigurations.added)
+    })
+  })
+
+  describe('removeObsoleteNotifications', function() {
+    it('removes relevant notifications not in the config file', function() {
+      let bucketConfig = new BucketConfig(notifications)
+      bucketConfig.removeObsoleteNotifications(configurations)
+      expect(bucketConfig.getConfig()).to.deep.eq(notificationsWithConfigurations.obsolete)
     })
   })
 })

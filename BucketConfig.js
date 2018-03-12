@@ -13,14 +13,13 @@ class BucketConfig {
   }
   //update the current configuration with the ones stored in serverless.yml
   update(fileConfig) {
-    addNewNotifications(fileConfig)
+    this.addNewNotifications(fileConfig)
 
   }
 
   addNewNotifications(fileConfig) {
     fileConfig.events.forEach((event) => {
       if (this.isNew(event)) this.addNewNotification(event)
-      //console.log(this.config.results.LambdaFunctionConfigurations)
     })
   }
 
