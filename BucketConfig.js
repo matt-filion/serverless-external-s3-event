@@ -6,9 +6,10 @@ class BucketConfig {
   constructor(config, serverless, provider) {
     this.config = config
     this.s3 = new S3()
+    this.serverless = serverless
     if (serverless != undefined){
-      serverless.cli.log(serverless.service.getServiceObject().name)
-      serverless.cli.log(serverless.service.provider.stage)
+      this.service = serverless.service.getServiceObject().name
+      this.stage = serverless.service.provider.stage
     }
   }
 
@@ -18,7 +19,7 @@ class BucketConfig {
   //update the current configuration with the ones stored in serverless.yml
   update(fileConfig) {
     this.addNewNotifications(fileConfig)
-
+    this.removeObsoleteNotifications(fileConfig)
   }
 
   addNewNotifications(fileConfig) {
@@ -59,6 +60,13 @@ class BucketConfig {
       Events: event.existingS3.events,
       Filter: filter
     })
+  }
+
+  removeObsoleteNotifications(fileConfig) {
+    this.serverless.cli.log(this.service)
+    this.serverless.cli.log(this.stage)
+
+
   }
 }
 
