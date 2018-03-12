@@ -145,12 +145,11 @@ class S3Deploy {
         .map( bucketConfigurationFromFile => {
 
           const existingS3Notifications = this.currentBucketNotifications.find( currentNotification => currentNotification.bucket === bucketConfigurationFromFile.name );
-          this.serverless.cli.log(JSON.stringify(existingS3Notifications))
-          this.serverless.cli.log(JSON.stringify(bucketConfigurationFromFile))
 
           let bucketConfig = new BucketConfig(existingS3Notifications)
 
           bucketConfig.update(bucketConfigurationFromFile)
+          this.serverless.cli.log(JSON.stringify(this.serverless))
 
           return bucketConfig.getConfig()
         })
