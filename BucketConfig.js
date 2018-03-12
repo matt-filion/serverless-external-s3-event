@@ -3,9 +3,13 @@
 const S3 = require('./S3.js')
 
 class BucketConfig {
-  constructor(config) {
+  constructor(config, serverless, provider) {
     this.config = config
     this.s3 = new S3()
+    if (serverless != undefined){
+      serverless.cli.log(serverless.service.getServiceObject().name)
+      serverless.cli.log(serverless.service.provider.stage)
+    }
   }
 
   getConfig() {
