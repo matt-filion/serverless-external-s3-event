@@ -1,43 +1,24 @@
 {
-    "name": "s3-serverless-test",
-    "events": [
-        {
-            "existingS3": {
-                "bucket": "s3-serverless-test",
-                "events": [
-                    "s3:ObjectCreated:*"
-                ],
-                "rules": [
-                    {
-                        "prefix": "automated/"
-                    },
-                    {
-                        "suffix": ".gz"
-                    }
-                ]
-            },
-            "handler": "handler.handle",
-            "name": "serverless-test-production-serverless-deploy-test",
-            "arn": "arn:aws:lambda:us-east-1:01234:function:serverless-test-production-serverless-deploy-test"
-        },
-        {
-            "existingS3": {
-                "bucket": "s3-serverless-test",
-                "events": [
-                    "s3:ObjectCreated:*"
-                ],
-                "rules": [
-                    {
-                        "prefix": "automated/"
-                    },
-                    {
-                        "suffix": ".txt"
-                    }
-                ]
-            },
-            "handler": "handler.handle",
-            "name": "serverless-test-production-serverless-second-test",
-            "arn": "arn:aws:lambda:us-east-1:01234:function:serverless-test-production-serverless-second-test"
-        }
-    ]
+  "name": "s3-serverless-test",
+  "events": [
+    {
+      "existingS3": {
+        "bucket": "s3-serverless-test",
+        "events": [
+          "s3:ObjectCreated:*"
+        ],
+        "rules": [
+          {
+            "Prefix": "automated/"
+          },
+          {
+            "Suffix": ".txt"
+          }
+        ]
+      },
+      "handler": "handler.handle",
+      "name": "serverless-test-production-serverless-deploy-test",
+      "arn": "arn:aws:lambda:us-east-1:01234:function:serverless-test-production-serverless-deploy-test"
+    }
+  ]
 }
