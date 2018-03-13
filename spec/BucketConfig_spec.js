@@ -11,27 +11,21 @@ const expect = chai.expect
 describe('BucketConfig', function() {
   describe('addNewNotifications', function() {
     it('adds notifications existing only in the file to the config', function() {
-      let bucketConfig = new BucketConfig(notifications)
-      bucketConfig.addNewNotifications(configurations)
+      let bucketConfig = new BucketConfig(notifications.added)
+      bucketConfig.addNewNotifications(configurations.added)
       expect(bucketConfig.getConfig()).to.deep.eq(notificationsWithConfigurations.added)
     })
   })
 
   describe('removeObsoleteNotifications', function() {
     it('removes relevant notifications not in the config file', function() {
-      let bucketConfig = new BucketConfig(notifications, {
+      let bucketConfig = new BucketConfig(notifications.obsolete, {
         "service": {
           "getServiceObject": sinon.stub().returns({ "name": "serverless-test" }),
           "provider": { "stage": "production" }
         }
       })
-      bucketConfig.removeObsoleteNotifications(
-        {
-          "name": "s3-serverless-test",
-          "events": [
-          ]
-        }
-      )
+      bucketConfig.removeObsoleteNotifications(configurations.obsolete)
       expect(bucketConfig.getConfig()).to.deep.eq(notificationsWithConfigurations.obsolete)
     })
   })

@@ -1,51 +1,104 @@
 {
-  "bucket": "s3-serverless-test",
-  "results": {
-    "TopicConfigurations": [],
-    "QueueConfigurations": [],
-    "LambdaFunctionConfigurations": [
-      {
-        "Id": "exS3-v2--a1a71fe0a56f35d8a5514afbe33a187d",
-        "LambdaFunctionArn": "arn:aws:lambda:us-east-1:01234:function:serverless-test-production-serverless-deploy-test",
-        "Events": [
-          "s3:ObjectCreated:*"
-        ],
-        "Filter": {
-          "Key": {
-            "FilterRules": [
-              {
-                "Name": "Prefix",
-                "Value": "automated/"
-              },
-              {
-                "Name": "Suffix",
-                "Value": ".gz"
-              }
-            ]
+  "added": {
+    "bucket": "s3-serverless-test",
+    "results": {
+      "TopicConfigurations": [],
+      "QueueConfigurations": [],
+      "LambdaFunctionConfigurations": [
+        {
+          "Id": "exS3-v2--a1a71fe0a56f35d8a5514afbe33a187d",
+          "LambdaFunctionArn": "arn:aws:lambda:us-east-1:01234:function:serverless-test-production-serverless-deploy-test",
+          "Events": [
+            "s3:ObjectCreated:*"
+          ],
+          "Filter": {
+            "Key": {
+              "FilterRules": [
+                {
+                  "Name": "Prefix",
+                  "Value": "automated/"
+                },
+                {
+                  "Name": "Suffix",
+                  "Value": ".gz"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "Id": "exS3-v2--12e4385ca3170e0460cad7afa8c9f8ed",
+          "LambdaFunctionArn": "arn:aws:lambda:us-east-1:01234:function:serverless-test2-production-serverless-second-test",
+          "Events": [
+            "s3:ObjectCreated:*"
+          ],
+          "Filter": {
+            "Key": {
+              "FilterRules": [
+                {
+                  "Name": "Prefix",
+                  "Value": "automated/"
+                },
+                {
+                  "Name": "Suffix",
+                  "Value": ".txt"
+                }
+              ]
+            }
           }
         }
-      },
-      {
-        "Id": "exS3-v2--12e4385ca3170e0460cad7afa8c9f8ed",
-        "LambdaFunctionArn": "arn:aws:lambda:us-east-1:01234:function:serverless-test2-production-serverless-second-test",
-        "Events": [
-          "s3:ObjectCreated:*"
-        ],
-        "Filter": {
-          "Key": {
-            "FilterRules": [
-              {
-                "Name": "Prefix",
-                "Value": "automated/"
-              },
-              {
-                "Name": "Suffix",
-                "Value": ".txt"
-              }
-            ]
+      ]
+    }
+  },
+    "obsolete": {
+    "bucket": "s3-serverless-test",
+    "results": {
+      "TopicConfigurations": [],
+      "QueueConfigurations": [],
+      "LambdaFunctionConfigurations": [
+        {
+          "Id": "exS3-v2--a1a71fe0a56f35d8a5514afbe33a187d",
+          "LambdaFunctionArn": "arn:aws:lambda:us-east-1:01234:function:serverless-test-production-serverless-deploy-test",
+          "Events": [
+            "s3:ObjectCreated:*"
+          ],
+          "Filter": {
+            "Key": {
+              "FilterRules": [
+                {
+                  "Name": "Prefix",
+                  "Value": "automated/"
+                },
+                {
+                  "Name": "Suffix",
+                  "Value": ".gz"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "Id": "exS3-v2--9ffc698932e20da8219cfc206538963d",
+          "LambdaFunctionArn": "arn:aws:lambda:us-east-1:01234:function:serverless-test-production-serverless-second-test",
+          "Events": [
+            "s3:ObjectCreated:*"
+          ],
+          "Filter": {
+            "Key": {
+              "FilterRules": [
+                {
+                  "Name": "Prefix",
+                  "Value": "automated/"
+                },
+                {
+                  "Name": "Suffix",
+                  "Value": ".txt"
+                }
+              ]
+            }
           }
         }
-      }
-    ]
+      ]
+    }
   }
 }
