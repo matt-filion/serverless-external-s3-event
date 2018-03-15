@@ -140,23 +140,6 @@ class S3Deploy {
       this.serverless.cli.log("s3 --> initiate requests ...");
 
       const promises = this.bucketNotifications
-        .map( bucketConfiguration => {
-          
-          const s3Notifications = this.currentBucketNotifications.find( currentNotification => currentNotification.bucket === bucketConfiguration.name );
-
-          /*
-           * Remove any events that were previously created. No sense in sending them
-           *  across again.
-           */
-          if(s3Notifications && s3Notifications.results.length !== 0) {
-            bucketConfiguration.events = bucketConfiguration.events.filter( event => {
-              return !s3Notifications.results.find( s3Event => s3Event.Id === this.s3Facade.getId(event) );
-            })
-          }
-
-
-          return bucketConfiguration;
-        })
         .filter( bucketConfig => bucketConfig.events.length !== 0)
         .map( bucketConfig => this.s3Facade.putLambdaNotification(bucketConfig) )
 
