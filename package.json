@@ -5,7 +5,11 @@
   "main": "index.js",
   "homepage": "https://github.com/matt-filion/serverless-external-s3-event",
   "dependencies": {},
-  "devDependencies": {},
+  "devDependencies": {
+    "chai": "^4.1.2",
+    "mocha": "^5.0.4",
+    "sinon": "^4.4.3"
+  },
   "maintainers": [
     {
       "name": "Matt Filion",
@@ -19,7 +23,8 @@
     "package.json",
     "Permissions.js",
     "S3.js",
-    "Transformer.js"
+    "Transformer.js",
+    "BucketConfig.js"
   ],
   "contributors": [
     {
@@ -55,5 +60,8 @@
     "notifications",
     "serverless",
     "serverless.com"
-  ]
+  ],
+  "scripts": {
+    "test": "mocha spec"
+  }
 }

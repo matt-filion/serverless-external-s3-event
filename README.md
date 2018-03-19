@@ -92,3 +92,10 @@ The only one I see, and quite regularly during my testing, is a result of having
 
 If you are really stuck, open an issue at https://github.com/matt-filion/serverless-external-s3-event/issues
 
+# Contributing
+You can run test by running
+
+```
+yarn install
+yarn test
+```
