@@ -38,6 +38,16 @@ class BucketConfig {
 
   addNewNotification(event) {
     let id = this.s3.getId(event)
+
+    this.config.results.LambdaFunctionConfigurations.push({
+      Id: id,
+      LambdaFunctionArn: event.arn,
+      Events: event.existingS3.events,
+      Filter: this.notificationFilterFrom(event)
+    })
+  }
+
+  notificationFilterFrom(event) {
     let filter = undefined
 
     if(event.existingS3.rules && event.existingS3.rules.length !== 0) {
@@ -54,12 +64,7 @@ class BucketConfig {
       }
     }
 
-    this.config.results.LambdaFunctionConfigurations.push({
-      Id: id,
-      LambdaFunctionArn: event.arn,
-      Events: event.existingS3.events,
-      Filter: filter
-    })
+    return filter
   }
 
   removeObsoleteNotifications(fileConfig) {
