@@ -142,6 +142,7 @@ class S3Deploy {
       this.serverless.cli.log("s3 --> initiate requests ...");
 
       const promises = this.bucketNotifications
+        .filter( bucketConfig => bucketConfig.events.length !== 0)
         .map( bucketConfigurationFromFile => {
 
           const existingS3Notifications = this.currentBucketNotifications.find( currentNotification => currentNotification.bucket === bucketConfigurationFromFile.name );
