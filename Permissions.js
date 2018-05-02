@@ -7,7 +7,9 @@ class LambdaPermissions {
   }
 
   getId(functionName,bucketName) {
-    return `exS3-v2-${functionName}-${bucketName.replace(/[\.\:\*]/g,'')}`;
+    const id = `exS3-v2-${functionName}-${bucketName.replace(/[\.\:\*]/g,'')}`;
+    if (id.length < 100) { return id }
+    return id.substring(0,68) + require('crypto').createHash('md5').update(id).digest("hex")
   }
 
   createPolicy(functionName,bucketName,passthrough){
