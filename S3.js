@@ -10,7 +10,7 @@ class S3 {
   }
 
   getId(event) {
-    const eventTypes = event.existingS3.event || ['s3:ObjectCreated:*'];
+    const eventTypes = event.existingS3.events || ['s3:ObjectCreated:*'];
     const rules      = event.existingS3.rules ? event.existingS3.rules.sort( (a,b) => Object.keys(a) - Object.keys(b) ) : [];
     const md5Data    = `${event.arn}_${eventTypes.join('OR').replace(/[\.\:\*]/g,'')}_${rules.map(rule => JSON.stringify(rule)).join('-')}`;
     const md5        = crypto.createHash('md5').update(md5Data).digest("hex");
