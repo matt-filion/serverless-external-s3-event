@@ -21,7 +21,7 @@ class LambdaPermissions {
       SourceArn: `arn:aws:s3:::${bucketName}`
     }
     return this.provider.request('Lambda', 'addPermission', payload)
-      .then( results =>  Object.assign({},{ statement: this.getStatement(this.asJson(results.Policy),passthrough), passthrough }) )
+      .then( () => this.getPolicy(functionName, passthrough) )
   }
 
   getPolicy(functionName,passthrough) {
