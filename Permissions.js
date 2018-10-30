@@ -13,12 +13,13 @@ class LambdaPermissions {
   }
 
   createPolicy(functionName,bucketName,passthrough){
+    let region = (this.provider.sdk && this.provider.sdk.config && this.provider.sdk.config.region) || undefined;
     const payload = {
       Action: "lambda:InvokeFunction",
       FunctionName: functionName,
       Principal: 's3.amazonaws.com',
       StatementId: this.getId(functionName,bucketName),
-      SourceArn: `arn:aws:s3:::${bucketName}`
+      SourceArn: `arn:${(region && /^cn\-/.test(region)) ? 'aws-cn' : 'aws'}:s3:::${bucketName}`
     }
     return this.provider.request('Lambda', 'addPermission', payload)
       .then( () => this.getPolicy(functionName, passthrough) )
