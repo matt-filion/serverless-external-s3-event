@@ -13,6 +13,9 @@ class S3Deploy {
     this.serverless        = serverless;
     this.options           = options;
     this.provider          = this.serverless.getProvider('aws');
+    if (!(this.provider.sdk && this.provider.sdk.config && this.provider.sdk.config.region)) {
+      this.provider.sdk.config.region = this.serverless.service.provider.region;
+    }
     this.s3Facade          = new S3(this.serverless,this.options,this.provider);
     this.lambdaPermissions = new Permissions.Lambda(this.options, this.provider);
     this.transformer       = new Transformer(this.lambdaPermissions);
