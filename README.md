@@ -1,3 +1,6 @@
+# What?
+This is a fixed version for `serverless-plugin-existing-s3`. You can use this repo to deploy you Lambda in aws-cn.
+
 # Why?
 Overcomes the CloudFormation limitation on attaching an event to an uncontrolled bucket, for Serverless.com 1.11.0+. See [this stackoverflow issue](http://serverfault.com/questions/610788/using-cloudformation-with-an-existing-s3-bucket) for more information.
 
@@ -6,14 +9,14 @@ Overcomes the CloudFormation limitation on attaching an event to an uncontrolled
 **1. NPM dependency**
 _Looking to eliminate this step, as it will place the dependency within your deployed code._
 ```
-> npm install serverless-plugin-existing-s3
+> npm install serverless-plugin-existing-s3-cn
 ```
 
 **Declare the plugin in your serverless.yml**
 ```serverless.yml
 
 plugins:
- - serverless-plugin-existing-s3
+ - serverless-plugin-existing-s3-cn
 
 ```
 
@@ -90,7 +93,8 @@ Done.
 
 The only one I see, and quite regularly during my testing, is a result of having the wrong bucket name configured in the serverless.yml, either in the IAM configuration providing permissions or in the function definition where I'm attaching the event. Make sure your bucket names are right.
 
-If you are really stuck, open an issue at https://github.com/matt-filion/serverless-external-s3-event/issues
+If you are really stuck, open an issue at https://github.com/
+/serverless-external-s3-event/issues
 
 # Contributing
 You can run test by running
