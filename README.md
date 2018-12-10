@@ -86,6 +86,15 @@ Done.
 
 ```
 
+**Command line options**
+
+* `--alias`: Use this option to specify the lambda function's alias to be set as the event handler. This is optional and if omitted, the lambda function without a qualifier will be used (the `$LATEST` version). Here's an example on how to use it:
+
+```
+> sls deploy --stage dev --alias dev
+> sls s3deploy --stage dev --alias dev
+``` 
+
 # I haz an errawr
 
 The only one I see, and quite regularly during my testing, is a result of having the wrong bucket name configured in the serverless.yml, either in the IAM configuration providing permissions or in the function definition where I'm attaching the event. Make sure your bucket names are right.
