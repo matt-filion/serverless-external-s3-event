@@ -3,7 +3,7 @@
 const Permissions = require('./Permissions');
 const S3          = require('./S3');
 const Transformer = require('./Transformer');
-const BucketConfig = require('./BucketConfig')
+const BucketConfig = require('./BucketConfig');
 
 
 class S3Deploy {
@@ -14,7 +14,7 @@ class S3Deploy {
     this.options           = options;
     this.provider          = this.serverless.getProvider('aws');
     this.s3Facade          = new S3(this.serverless,this.options,this.provider);
-    this.lambdaPermissions = new Permissions.Lambda(this.provider);
+    this.lambdaPermissions = new Permissions.Lambda(this.options, this.provider);
     this.transformer       = new Transformer(this.lambdaPermissions);
     this.commands          = {
       s3deploy: {

@@ -2,7 +2,8 @@
 
 class LambdaPermissions {
 
-  constructor(provider) {
+  constructor(options, provider) {
+    this.options = options;
     this.provider = provider;
   }
 
@@ -19,13 +20,20 @@ class LambdaPermissions {
       Principal: 's3.amazonaws.com',
       StatementId: this.getId(functionName,bucketName),
       SourceArn: `arn:aws:s3:::${bucketName}`
+    };
+    if (this.options.alias) {
+      payload['Qualifier'] = this.options.alias;
     }
     return this.provider.request('Lambda', 'addPermission', payload)
       .then( () => this.getPolicy(functionName, passthrough) )
   }
 
   getPolicy(functionName,passthrough) {
-    return this.provider.request('Lambda', 'getPolicy', { FunctionName: functionName })
+    const payload = {FunctionName: functionName};
+    if (this.options.alias) {
+      payload['Qualifier'] = this.options.alias;
+    }
+    return this.provider.request('Lambda', 'getPolicy', payload)
       .then( results => Object.assign({},{ statement: this.getStatement(this.asJson(results.Policy),passthrough), passthrough }) )
       .catch( error => Object.assign({}, { error:error.message, passthrough } ) );
   }
