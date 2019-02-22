@@ -8,7 +8,8 @@ class LambdaPermissions {
   }
 
   getId(functionName,bucketName) {
-    const id = `exS3-v2-${functionName}-${bucketName.replace(/[\.\:\*]/g,'')}`;
+    const aliasName = this.options.alias ? `-${this.options.alias}` : '';
+    const id = `exS3-v2-${functionName}${aliasName}-${bucketName.replace(/[\.\:\*]/g,'')}`;
     if (id.length < 100) { return id }
     return id.substring(0,68) + require('crypto').createHash('md5').update(id).digest("hex")
   }

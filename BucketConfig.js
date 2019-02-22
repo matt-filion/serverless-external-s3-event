@@ -3,8 +3,9 @@
 const S3 = require('./S3.js')
 
 class BucketConfig {
-  constructor(config, serverless, provider) {
+  constructor(config, serverless, options) {
     this.config = config
+    this.options = options;
     this.s3 = new S3()
     this.serverless = serverless
     if (serverless != undefined){
@@ -92,7 +93,8 @@ class BucketConfig {
   }
 
   relevantARN(arn) {
-    let re = new RegExp(this.service + "-" + this.stage, 'gi')
+    const aliasPart = (this.options && this.options.alias) ? `.*:${this.options.alias}` : '';
+    let re = new RegExp(this.service + "-" + this.stage + aliasPart, 'gi')
     return arn.match(re)
   }
 }
