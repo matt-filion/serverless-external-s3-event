@@ -23,7 +23,31 @@
       }
     ]
   },
-    "obsolete": {
+  "addedWithAliases": {
+    "name": "s3-serverless-test",
+    "events": [
+      {
+        "existingS3": {
+          "bucket": "s3-serverless-test",
+          "events": [
+            "s3:ObjectCreated:*"
+          ],
+          "rules": [
+            {
+              "Prefix": "automated/"
+            },
+            {
+              "Suffix": ".txt"
+            }
+          ]
+        },
+        "handler": "handler.handle",
+        "name": "serverless-test-production-serverless-deploy-test",
+        "arn": "arn:aws:lambda:us-east-1:01234:function:serverless-test-production-serverless-deploy-test:test_alias"
+      }
+    ]
+  },
+  "obsolete": {
     "name": "s3-serverless-test",
     "events": [
       {
@@ -44,6 +68,30 @@
         "handler": "handler.handle",
         "name": "serverless-test-production-serverless-second-test",
         "arn": "arn:aws:lambda:us-east-1:01234:function:serverless-test-production-serverless-second-test"
+      }
+    ]
+  },
+  "obsoleteWithAliases": {
+    "name": "s3-serverless-test",
+    "events": [
+      {
+        "existingS3": {
+          "bucket": "s3-serverless-test",
+          "events": [
+            "s3:ObjectCreated:*"
+          ],
+          "rules": [
+            {
+              "Prefix": "automated/"
+            },
+            {
+              "Suffix": ".txt"
+            }
+          ]
+        },
+        "handler": "handler.handle",
+        "name": "serverless-test-production-serverless-second-test",
+        "arn": "arn:aws:lambda:us-east-1:01234:function:serverless-test-production-serverless-second-test:test_alias"
       }
     ]
   }

@@ -17,6 +17,14 @@ describe('BucketConfig', function() {
     })
   })
 
+  describe('addNewNotificationsWithAliases', function() {
+    it('adds notifications to aliased lambdas existing only in the file to the config', function() {
+      let bucketConfig = new BucketConfig(notifications.addedWithAliases)
+      bucketConfig.addNewNotifications(configurations.addedWithAliases)
+      expect(bucketConfig.getConfig()).to.deep.eq(notificationsWithConfigurations.addedWithAliases)
+    })
+  })
+
   describe('removeObsoleteNotifications', function() {
     it('removes relevant notifications not in the config file', function() {
       let bucketConfig = new BucketConfig(notifications.obsolete, {
@@ -27,6 +35,19 @@ describe('BucketConfig', function() {
       })
       bucketConfig.removeObsoleteNotifications(configurations.obsolete)
       expect(bucketConfig.getConfig()).to.deep.eq(notificationsWithConfigurations.obsolete)
+    })
+  })
+
+  describe('removeObsoleteNotificationsWithAliases', function() {
+    it('removes relevant notifications not in the config file, taking into account aliases', function() {
+      let bucketConfig = new BucketConfig(notifications.obsoleteWithAliases, {
+        "service": {
+          "getServiceObject": sinon.stub().returns({ "name": "serverless-test" }),
+          "provider": { "stage": "production" }
+        }
+      }, { alias: 'test_alias' })
+      bucketConfig.removeObsoleteNotifications(configurations.obsoleteWithAliases)
+      expect(bucketConfig.getConfig()).to.deep.eq(notificationsWithConfigurations.obsoleteWithAliases)
     })
   })
 })
