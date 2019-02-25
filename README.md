@@ -58,6 +58,28 @@ functions:
             - suffix: .jpg
 ```
 
+**Multiple Prefixes**
+As identified with [issue 62](https://github.com/matt-filion/serverless-external-s3-event/issues/62).
+
+```
+functions:
+  myAmazingLambdaFunction:
+    handler: lambda-to-be-triggered-by-s3.handler
+    events:
+      - existingS3:
+          bucket: 'my-bucket'
+          events: 
+            - s3:ObjectCreated:*
+          rules:
+            - prefix: some/prefix
+      - existingS3:
+          bucket: 'my-bucket'
+          events: 
+            - s3:ObjectCreated:*
+          rules:
+            - prefix: someother/prefix
+```
+
 **Run the command.**
 _I could not figure out how to hook into the existing deploy behaviors built into Serverless.com's deploy command. So as a result you have to run a separate command AFTER you do ```sls deploy```._
 
