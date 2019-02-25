@@ -28,6 +28,7 @@ provider:
     ...
     -  Effect: "Allow"
        Action:
+         - "s3:GetBucketNotification"
          - "s3:PutBucketNotification"
        Resource:
          Fn::Join:
