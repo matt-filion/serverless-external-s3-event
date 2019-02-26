@@ -150,7 +150,7 @@ class S3Deploy {
 
           const existingS3Notifications = this.currentBucketNotifications.find( currentNotification => currentNotification.bucket === bucketConfigurationFromFile.name );
 
-          let bucketConfig = new BucketConfig(existingS3Notifications, this.serverless)
+          let bucketConfig = new BucketConfig(existingS3Notifications, this.serverless, this.options)
 
           bucketConfig.update(bucketConfigurationFromFile)
 
