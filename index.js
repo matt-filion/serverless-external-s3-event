@@ -36,6 +36,10 @@ class S3Deploy {
           }
         }
       },
+      s3remove: {
+        lifecycleEvents: ['remove'],
+        usage: 'remove lambda notifications to S3 buckets defined in serverless.yml',
+      }
     };
 
     this.hooks = {
@@ -43,7 +47,9 @@ class S3Deploy {
       's3deploy:functions': this.functions.bind(this),
 
       'before:s3deploy:s3':this.beforeS3.bind(this),
-      's3deploy:s3': this.s3.bind(this)
+      's3deploy:s3': this.s3.bind(this),
+
+      's3remove:remove': this.s3remove.bind(this),
     };
 
     this.bucketNotifications;
@@ -111,9 +117,9 @@ class S3Deploy {
       )
       .then( results => Promise.all(results) )
 
-    /*
-     * Transform results
-     */
+      /*
+       * Transform results
+       */
       .then( events => this.transformer.eventsToBucketGroups(events) )
       .then( bucketNotifications => {
         this.bucketNotifications = bucketNotifications;
@@ -162,6 +168,35 @@ class S3Deploy {
         .then( results => this.serverless.cli.log(`s3 <-- Complete ${results.length} updates.`) );
 
     }
+  }
+
+  s3remove() {
+    const region = this.provider.sdk.config.region;
+    const funcToDelete = Object.values(this.serverless.service.functions)
+      .map( funktion => funktion.name );
+
+    this.serverless.cli.log(`remove --> Start`);
+
+    return Promise.resolve(Object.values(this.serverless.service.functions))
+      // aggregate from functions to bucket base
+      .then( funktions => funktions.reduce((accumulator,current) => accumulator.concat(current.events), [])
+        .filter( event => event.existingS3 )
+        .map( event => this.s3Facade.getLambdaNotifications(event.existingS3.bucket) )
+      )
+      .then( results => Promise.all(results) )
+      // start remove function notification
+      .then( results => results
+        .map( bucketNotification => {
+          const bucketConfig = new BucketConfig(bucketNotification, this.serverless, this.options)
+
+          const removed = bucketConfig.remove(funcToDelete, region);
+
+          return this.s3Facade.putLambdaNotification(bucketConfig.getConfig());
+        })
+      )
+      .then( puts => Promise.all(puts) )
+      .then( () => this.serverless.cli.log(`remove <-- Done`) );
+
   }
 }
 
