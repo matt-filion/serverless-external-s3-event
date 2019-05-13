@@ -36,7 +36,7 @@ class S3Deploy {
           }
         }
       },
-      s3remove: {
+      s3eventremove: {
         lifecycleEvents: ['remove'],
         usage: 'remove lambda notifications to S3 buckets defined in serverless.yml',
       }
@@ -49,7 +49,7 @@ class S3Deploy {
       'before:s3deploy:s3':this.beforeS3.bind(this),
       's3deploy:s3': this.s3.bind(this),
 
-      's3remove:remove': this.s3remove.bind(this),
+      's3eventremove:remove': this.s3remove.bind(this),
     };
 
     this.bucketNotifications;
