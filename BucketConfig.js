@@ -23,6 +23,16 @@ class BucketConfig {
     this.removeObsoleteNotifications(fileConfig)
   }
 
+  remove(functionNames, region) {
+    functionNames.forEach(name => {
+      let re = new RegExp(`^arn:[cn\-]?aws:lambda:${region}:[0-9]+:function:${name}$`, 'i');
+      this.config.results.LambdaFunctionConfigurations =
+        this.config.results.LambdaFunctionConfigurations.filter(function (e) {
+          return !re.test(e.LambdaFunctionArn);
+        });
+    })
+  }
+
   addNewNotifications(fileConfig) {
     fileConfig.events.forEach((event) => {
       if (this.isNew(event)) this.addNewNotification(event)
