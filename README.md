@@ -5,10 +5,9 @@ Overcomes the CloudFormation limitation on attaching an event to an uncontrolled
 # How?
 
 **1. NPM dependency**
-_Looking to eliminate this step, as it will place the dependency within your deployed code._
 
 ```
-> npm install serverless-plugin-existing-s3
+> npm install --save-dev serverless-plugin-existing-s3
 ```
 
 **Declare the plugin in your serverless.yml**
