@@ -1,3 +1,10 @@
+-----
+# DEPRECATED
+
+This functionality is now native to serverless. See the docs at https://serverless.com/framework/docs/providers/aws/events/s3#using-existing-buckets for more information.
+
+-----
+
 # Why?
 
 Overcomes the CloudFormation limitation on attaching an event to an uncontrolled bucket, for Serverless.com 1.11.0+. See [this stackoverflow issue](http://serverfault.com/questions/610788/using-cloudformation-with-an-existing-s3-bucket) for more information.
